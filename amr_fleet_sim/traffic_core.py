@@ -192,6 +192,7 @@ class TrafficManager:
                 del self.owner[n]
         a.node, a.moving_to = node, None
         a.route, a.goal = [], None
+        a.wait_since = a.wait_on = None   # else others see a phantom wait-for cycle through us
 
     # ---------------------------------------------------------------- internals
     def _others(self, name):

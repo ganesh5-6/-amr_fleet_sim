@@ -235,4 +235,15 @@ check('stop returns task to queue (or reassigns it)', fm.tasks[1].status in ('PE
 run(300); check('task eventually completes', snap(fm)['stats']['done'] == 1)
 logs = [json.loads(m.data) for m in fm.log_pub.msgs]
 check('log feed has info + warn entries', {'info', 'warn'} <= {l['level'] for l in logs})
+
+# 7 ---------------------------------------------------------------------- failed auto-dock backs off
+print('7. low battery + unreachable dock does not retry every tick'); fm = new_fleet()
+real_set_goal = fm.traffic.set_goal
+fm.traffic.set_goal = lambda name, *a, **k: False if name == 'amr1' else real_set_goal(name, *a, **k)
+fm.robots['amr1'].battery = 20.0; n0 = len(fm.log_pub.msgs); run(5)
+tries = sum('docking to charge' in json.loads(m.data)['msg'] and 'amr1' in json.loads(m.data)['msg']
+            for m in fm.log_pub.msgs[n0:])
+check(f'only one dock attempt in 5 s (got {tries})', tries == 1)
+fm.traffic.set_goal = real_set_goal; run(15)
+check('retries after the back-off and ends up charging', fm.robots['amr1'].status == 'CHARGING')
 print(f'\nALL {len(passed)} MANAGER CHECKS PASSED')

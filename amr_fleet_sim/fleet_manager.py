@@ -58,6 +58,7 @@ class FleetManager(Node):
         self.declare_parameter('low_battery', 30.0)
         self.declare_parameter('charge_rate', 4.0)
         self.declare_parameter('max_retries', 2)
+        self.declare_parameter('dock_retry_s', 10.0)    # wait this long before retrying a failed dock
         self.declare_parameter('log_dir', os.path.expanduser('~/fleet_logs'))
 
         g = self.get_parameter
@@ -70,6 +71,8 @@ class FleetManager(Node):
         self.low_battery = g('low_battery').value
         self.charge_rate = g('charge_rate').value
         self.max_retries = g('max_retries').value
+        self.dock_retry_s = g('dock_retry_s').value
+        self.dock_retry_at = {}                          # robot -> earliest time to retry auto-docking
 
         with open(g('stations_file').value) as f:
             self.stations = yaml.safe_load(f)['stations']
@@ -342,7 +345,7 @@ class FleetManager(Node):
                     r.status = 'IDLE'
                     self.flog('info', f'{n} fully charged')
             elif (r.status == 'IDLE' and r.ready and not r.manual and not r.estop
-                  and r.battery < self.low_battery):
+                  and r.battery < self.low_battery and now >= self.dock_retry_at.get(n, 0.0)):
                 self.flog('warn', f'{n} battery {r.battery:.0f}% - docking to charge')
                 self.send_to_dock(r)
 
@@ -404,6 +407,7 @@ class FleetManager(Node):
         robot.target_xy = target_xy or self.roadmap.nodes[node]
         if not self.traffic.set_goal(robot.name, node, priority):
             self.flog('error', f'{robot.name}: no route to {node}')
+            self.traffic.settle(robot.name, self.roadmap.nearest_node(robot.xy))
             on_done(False)
             return
         self._advance(robot, rid, yaw, on_done)
@@ -422,7 +426,8 @@ class FleetManager(Node):
             self._segment(robot, rid, val, yaw, on_done, 0)
         elif kind == 'WAIT':
             self.call_later(0.5, lambda: self._advance(robot, rid, yaw, on_done))
-        else:
+        else:                                        # NOROUTE: drop goal + stale wait state
+            self.traffic.settle(robot.name, self.roadmap.nearest_node(robot.xy))
             on_done(False)
 
     def _segment(self, robot, rid, node, final_yaw, on_done, tries):
@@ -493,6 +498,11 @@ class FleetManager(Node):
         def done(ok):
             robot.target_xy = None
             robot.status = 'CHARGING' if (ok and robot.battery < 99.0) else 'IDLE'
+            if ok:
+                self.dock_retry_at.pop(robot.name, None)
+            else:                                   # back off, or the low-battery check retries every tick
+                self.dock_retry_at[robot.name] = self._now() + self.dock_retry_s
+                self.flog('warn', f'{robot.name}: docking failed, retry in {self.dock_retry_s:.0f}s')
         self.drive_to(robot, robot.dock_node, robot.dock_yaw, 0, done, target_xy=robot.dock_xy)
 
     # ------------------------------------------------------------ monitoring

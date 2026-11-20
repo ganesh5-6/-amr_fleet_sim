@@ -77,4 +77,14 @@ def hub(rnd, cur):
 gap, done, _ = run({'amr1': 'dock_amr1', 'amr2': 'dock_amr2', 'amr3': 'dock_amr3'}, hub, sim_time=900, seed=3)
 print(f'hub stress       : min gap {gap:.2f} m, trips {done}')
 assert gap > 1.0 and min(done.values()) >= 5
+
+# 4) settle() must clear wait state, else a parked robot forms a phantom deadlock cycle
+tm = TrafficManager(rm, patience=1e9)
+tm.register('a', 'D2'); tm.register('b', 'B0')
+tm.set_goal('a', 'B4'); assert tm.request('a', 0.0) == ('WAIT', 'b')
+tm.settle('a', 'D2')                        # e.g. operator pressed Stop / Dock on robot a
+assert tm.agents['a'].wait_on is None, 'settle left a stale wait_on'
+tm.set_goal('b', 'D1'); assert tm.request('b', 1.0)[0] == 'WAIT'
+assert tm._cycle('b') is None, 'phantom wait-for cycle through a settled robot'
+print('settle           : wait state cleared, no phantom cycle')
 print('ALL TRAFFIC TESTS PASSED')
