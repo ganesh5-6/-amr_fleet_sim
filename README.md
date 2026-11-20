@@ -33,7 +33,7 @@ test/            offline tests (no ROS needed)
 
 ```bash
 mkdir -p ~/amr_ws/src && cd ~/amr_ws/src
-git clone https://github.com/ganesh5-6/amr_fleet_sim.git
+git clone https://github.com/ganesh5-6/-amr_fleet_sim.git amr_fleet_sim
 cd .. && rosdep install --from-paths src -y --ignore-src
 colcon build --symlink-install && source install/setup.bash
 ```
