@@ -13,6 +13,7 @@ def generate_launch_description():
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg, 'launch', 'multi_robot_sim.launch.py')),
         launch_arguments={
+            'world': 'warehouse',
             'robots_file': os.path.join(pkg, 'config', 'robots_mapping.yaml'),
             'gui': LaunchConfiguration('gui'),
             'camera': LaunchConfiguration('camera'),

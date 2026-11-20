@@ -17,6 +17,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import yaml
 
+from amr_fleet_sim.world_config import DEFAULT_WORLD, WORLDS, world_files
+
 
 def share_dir():
     try:
@@ -26,9 +28,8 @@ def share_dir():
         return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-def make_handler(share, map_yaml):
+def make_handler(share, map_yaml, files):
     dash = os.path.join(share, 'dashboard', 'index.html')
-    cfg = os.path.join(share, 'config')
 
     def load_yaml(path):
         with open(path) as f:
@@ -58,12 +59,12 @@ def make_handler(share, map_yaml):
                     with open(dash, 'rb') as f:
                         return self._send(200, f.read(), 'text/html; charset=utf-8')
                 if path == '/roadmap.json':
-                    rm = load_yaml(os.path.join(cfg, 'roadmap.yaml'))
+                    rm = load_yaml(files['roadmap'])
                     return self._json({'nodes': rm['nodes'], 'edges': rm['edges']})
                 if path == '/robots.json':
-                    return self._json(load_yaml(os.path.join(cfg, 'robots.yaml'))['robots'])
+                    return self._json(load_yaml(files['robots'])['robots'])
                 if path == '/stations.json':
-                    return self._json(load_yaml(os.path.join(cfg, 'stations.yaml'))['stations'])
+                    return self._json(load_yaml(files['stations'])['stations'])
                 if path in ('/map_info.json', '/map.pgm'):
                     if not os.path.exists(map_yaml):
                         return self._json({'error': f'map not found: {map_yaml}'}, 404)
@@ -83,11 +84,13 @@ def make_handler(share, map_yaml):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--port', type=int, default=8080)
-    ap.add_argument('--map', default=None, help='path to map .yaml (default: installed warehouse.yaml)')
+    ap.add_argument('--world', default=DEFAULT_WORLD, choices=WORLDS)
+    ap.add_argument('--map', default=None, help="path to map .yaml (default: the world's map)")
     args, _ = ap.parse_known_args(argv if argv is not None else sys.argv[1:])
     share = share_dir()
-    map_yaml = args.map or os.path.join(share, 'maps', 'warehouse.yaml')
-    srv = ThreadingHTTPServer(('0.0.0.0', args.port), make_handler(share, map_yaml))
+    files = world_files(share, args.world)
+    map_yaml = args.map or files['map']
+    srv = ThreadingHTTPServer(('0.0.0.0', args.port), make_handler(share, map_yaml, files))
     print(f'Dashboard: http://localhost:{args.port}   (map: {map_yaml})', flush=True)
     try:
         srv.serve_forever()

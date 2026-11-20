@@ -2,7 +2,7 @@
 <package format="3">
   <name>amr_fleet_sim</name>
   <version>0.1.0</version>
-  <description>Multi-AMR Gazebo simulation (Phase 1)</description>
+  <description>Multi-AMR warehouse fleet simulation</description>
   <maintainer email="you@example.com">you</maintainer>
   <license>MIT</license>
 
@@ -21,6 +21,7 @@
   <exec_depend>tf2_ros_py</exec_depend>
   <exec_depend>action_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>rosbridge_server</exec_depend>

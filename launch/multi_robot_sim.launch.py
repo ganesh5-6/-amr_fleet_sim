@@ -3,10 +3,12 @@ import yaml
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+from amr_fleet_sim.world_config import DEFAULT_WORLD, WORLDS, world_files
 
 
 # Gazebo colours (names from gazebo.material) and the matching RGBA for RViz.
@@ -16,16 +18,26 @@ STYLES = [('Gazebo/Turquoise', '0.13 0.83 0.93 1'), ('Gazebo/Purple', '0.55 0.36
           ('Gazebo/Red', '0.93 0.27 0.60 1')]
 
 
-def _spawn_robots(context, *args, **kwargs):
+def _sim(context, *args, **kwargs):
     pkg = get_package_share_directory('amr_fleet_sim')
     xacro_file = os.path.join(pkg, 'urdf', 'amr.urdf.xacro')
-    robots_file = LaunchConfiguration('robots_file').perform(context)
+    files = world_files(pkg, LaunchConfiguration('world').perform(context))
+    robots_file = LaunchConfiguration('robots_file').perform(context) or files['robots']
     camera = LaunchConfiguration('camera').perform(context)
+
+    gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory('gazebo_ros'),
+                         'launch', 'gazebo.launch.py')),
+        launch_arguments={'world': files['world'],
+                          'gui': LaunchConfiguration('gui'),
+                          'verbose': 'false'}.items())
 
     with open(robots_file, 'r') as f:
         robots = yaml.safe_load(f)['robots']
 
-    actions = []
+    # scoped: gazebo.launch.py has its own 'world' argument (a file path) that would overwrite ours
+    actions = [GroupAction([gazebo], scoped=True)]
     for i, r in enumerate(robots):
         name = r['name']
         gz_mat, rgba = STYLES[i % len(STYLES)]
@@ -56,24 +68,12 @@ def _spawn_robots(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    pkg = get_package_share_directory('amr_fleet_sim')
-    world = os.path.join(pkg, 'worlds', 'warehouse.world')
-
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('gazebo_ros'),
-                         'launch', 'gazebo.launch.py')),
-        launch_arguments={'world': world,
-                          'gui': LaunchConfiguration('gui'),
-                          'verbose': 'false'}.items())
-
     return LaunchDescription([
+        DeclareLaunchArgument('world', default_value=DEFAULT_WORLD, choices=list(WORLDS)),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('camera', default_value='true',
                               description='spawn robots with a front camera (needs a working GPU/OGRE)'),
-        DeclareLaunchArgument(
-            'robots_file',
-            default_value=os.path.join(pkg, 'config', 'robots.yaml')),
-        gazebo,
-        OpaqueFunction(function=_spawn_robots),
+        DeclareLaunchArgument('robots_file', default_value='',
+                              description='override the world\'s robots.yaml'),
+        OpaqueFunction(function=_sim),
     ])

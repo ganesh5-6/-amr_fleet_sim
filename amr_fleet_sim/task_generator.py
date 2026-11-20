@@ -6,6 +6,7 @@ import random
 import rclpy
 import yaml
 from ament_index_python.packages import get_package_share_directory
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import String
 import os
@@ -19,7 +20,8 @@ class TaskGenerator(Node):
         self.declare_parameter('max_tasks', 20)
         self.declare_parameter('seed', 42)
         self.declare_parameter('initial_delay', 40.0)  # let Nav2 come up first
-        with open(os.path.join(share, 'config', 'stations.yaml')) as f:
+        self.declare_parameter('stations_file', os.path.join(share, 'config', 'stations.yaml'))
+        with open(self.get_parameter('stations_file').value) as f:
             st = yaml.safe_load(f)['stations']
         self.pickups = sorted(k for k in st if k.startswith('P'))
         self.drops = sorted(k for k in st if k.startswith('D'))
@@ -51,10 +53,11 @@ def main():
     node = TaskGenerator()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):   # Ctrl+C / launch shutdown
         pass
     node.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

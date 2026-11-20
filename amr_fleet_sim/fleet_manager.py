@@ -28,6 +28,7 @@ from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Point, PoseStamped, Twist
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import ColorRGBA, String
 from tf2_ros import Buffer, TransformListener
@@ -35,6 +36,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from amr_fleet_sim.fleet_core import ALLOCATORS, Context, Robot, Task, dist
 from amr_fleet_sim.traffic_core import RoadMap, TrafficManager
+from amr_fleet_sim.world_config import DEFAULT_WORLD, world_files
 
 PKG = 'amr_fleet_sim'
 ROBOT_COLORS = [(1.0, 0.2, 0.2), (0.2, 0.85, 0.2), (0.2, 0.45, 1.0), (1.0, 0.8, 0.1), (0.8, 0.3, 1.0)]
@@ -47,9 +49,10 @@ class FleetManager(Node):
         share = get_package_share_directory(PKG)
 
         self.declare_parameter('allocator', 'hungarian')
-        self.declare_parameter('stations_file', os.path.join(share, 'config', 'stations.yaml'))
-        self.declare_parameter('robots_file', os.path.join(share, 'config', 'robots.yaml'))
-        self.declare_parameter('roadmap_file', os.path.join(share, 'config', 'roadmap.yaml'))
+        files = world_files(share, DEFAULT_WORLD)
+        self.declare_parameter('stations_file', files['stations'])
+        self.declare_parameter('robots_file', files['robots'])
+        self.declare_parameter('roadmap_file', files['roadmap'])
         self.declare_parameter('patience', 8.0)
         self.declare_parameter('allocation_period', 1.0)
         self.declare_parameter('load_time', 3.0)
@@ -73,6 +76,8 @@ class FleetManager(Node):
         self.max_retries = g('max_retries').value
         self.dock_retry_s = g('dock_retry_s').value
         self.dock_retry_at = {}                          # robot -> earliest time to retry auto-docking
+        self.fail_streak = {}                            # robot -> tasks failed in a row
+        self.bench_until = {}                            # robot -> no new tasks before this time
 
         with open(g('stations_file').value) as f:
             self.stations = yaml.safe_load(f)['stations']
@@ -137,8 +142,14 @@ class FleetManager(Node):
         return self._now() - self.t0
 
     def flog(self, level, msg):
-        {'info': self.get_logger().info, 'warn': self.get_logger().warn,
-         'error': self.get_logger().error}.get(level, self.get_logger().info)(msg)
+        # one call site per severity: rclpy (Humble) raises "Logger severity cannot be changed
+        # between calls" if the same line logs at different levels
+        if level == 'warn':
+            self.get_logger().warning(msg)
+        elif level == 'error':
+            self.get_logger().error(msg)
+        else:
+            self.get_logger().info(msg)
         self.log_pub.publish(String(data=json.dumps({'t': round(self._rel(), 1), 'level': level, 'msg': msg})))
 
     def call_later(self, delay, fn):
@@ -337,7 +348,8 @@ class FleetManager(Node):
                 has_pose = True
             except Exception:                                   # noqa
                 has_pose = False
-            r.ready = has_pose and self.nav_clients[n].server_is_ready()
+            r.ready = (has_pose and self.nav_clients[n].server_is_ready()
+                       and now >= self.bench_until.get(n, 0.0))
 
             if r.status == 'CHARGING':
                 r.battery = min(100.0, r.battery + self.charge_rate * dt)
@@ -476,6 +488,7 @@ class FleetManager(Node):
             return self.fail_task(robot, task, 'drop-off navigation failed')
         task.status, task.completed = 'DONE', self._rel()
         robot.task, robot.status, robot.target_xy = None, 'IDLE', None
+        self.fail_streak.pop(robot.name, None)
         wait, cycle = task.assigned - task.created, task.completed - task.created
         with open(self.log_path, 'a', newline='') as f:
             csv.writer(f).writerow([task.id, robot.name, task.priority, task.pickup, task.dropoff,
@@ -491,6 +504,14 @@ class FleetManager(Node):
         self.flog('warn', f'Task {task.id} on {robot.name}: {why}')
         self.release_task(robot, count_retry=True)
         robot.status, robot.target_xy = 'IDLE', None
+        # Bench the robot for a while (15 s, 30 s, 60 s ... 2 min) so the allocator hands the task
+        # to someone else instead of giving it straight back to a robot whose navigation is broken.
+        n = self.fail_streak[robot.name] = self.fail_streak.get(robot.name, 0) + 1
+        hold = min(120.0, 15.0 * 2 ** (n - 1))
+        self.bench_until[robot.name] = self._now() + hold
+        robot.ready = False
+        self.flog('error' if n >= 3 else 'warn',
+                  f'{robot.name}: {n} failed task(s) in a row - no new tasks for {hold:.0f}s')
 
     def send_to_dock(self, robot):
         robot.status = 'TO_DOCK'
@@ -583,10 +604,11 @@ def main():
     node = FleetManager()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):   # Ctrl+C / launch shutdown
         pass
     node.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

@@ -53,6 +53,18 @@ Visualization Manager:
       Color: 50; 120; 255
       Use Fixed Frame: true
       Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Name: amr4 scan
+      Enabled: true
+      Topic:
+        Value: /amr4/scan
+        Reliability Policy: Best Effort
+      Size (m): 0.04
+      Style: Flat Squares
+      Color Transformer: FlatColor
+      Color: 255; 200; 30
+      Use Fixed Frame: true
+      Value: true
     - Class: rviz_default_plugins/Path
       Name: amr1 plan
       Enabled: true
@@ -73,6 +85,13 @@ Visualization Manager:
       Topic:
         Value: /amr3/plan
       Color: 50; 120; 255
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: amr4 plan
+      Enabled: true
+      Topic:
+        Value: /amr4/plan
+      Color: 255; 200; 30
       Value: true
     - Class: rviz_default_plugins/Map
       Name: amr1 global costmap
@@ -151,7 +170,7 @@ Visualization Manager:
     Current:
       Class: rviz_default_plugins/TopDownOrtho
       Name: Current View
-      Scale: 35
+      Scale: 24
       X: 0
       Y: 0
       Angle: 0

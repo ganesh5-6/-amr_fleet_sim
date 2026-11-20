@@ -4,6 +4,8 @@ from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+from amr_fleet_sim.world_config import DEFAULT_WORLD, WORLDS
+
 
 def _video(context, *args, **kwargs):
     """MJPEG camera streams for the dashboard (optional: skipped if the package is missing)."""
@@ -20,6 +22,7 @@ def _video(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('world', default_value=DEFAULT_WORLD, choices=list(WORLDS)),
         DeclareLaunchArgument('web_port', default_value='8080'),
         DeclareLaunchArgument('ws_port', default_value='9090'),
         DeclareLaunchArgument('video', default_value='true'),
@@ -29,6 +32,6 @@ def generate_launch_description():
              output='screen', parameters=[{'port': LaunchConfiguration('ws_port')}]),
         # serves the page + map + roadmap
         Node(package='amr_fleet_sim', executable='dashboard_server', output='screen',
-             arguments=['--port', LaunchConfiguration('web_port')]),
+             arguments=['--port', LaunchConfiguration('web_port'), '--world', LaunchConfiguration('world')]),
         OpaqueFunction(function=_video),
     ])

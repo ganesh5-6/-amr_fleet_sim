@@ -16,6 +16,7 @@ def reset():
     sim.t = 1000.0
     sim.timers, sim.subs, sim.pubs = [], {}, {}
     sim.world, sim.goals, sim.accept = {}, {}, []
+    sim.reject = set()              # robots whose Nav2 rejects every goal
     sim.min_gap = 1e9
     sim.zero_pubs = 0
 
@@ -45,6 +46,7 @@ class ActionClient:
     def server_is_ready(self): return True
     def send_goal_async(self, goal):
         fut = Future(); h = GoalHandle(self.robot, goal)
+        if self.robot in sim.reject: h.accepted = False; fut.set(h); return fut
         sim.accept.append((fut, h)); return fut
 
 class Timer:
@@ -59,8 +61,9 @@ class Pub:
 
 class Node:
     OVERRIDES = {'log_dir': '/tmp/fleet_test_logs', 'load_time': 1.0}
+    WORLD = {}                      # per-test file / parameter overrides (see new_fleet)
     def __init__(self, name): self._p = {}
-    def declare_parameter(self, n, d): self._p[n] = self.OVERRIDES.get(n, d)
+    def declare_parameter(self, n, d): self._p[n] = self.WORLD.get(n, self.OVERRIDES.get(n, d))
     def get_parameter(self, n): return NS(value=self._p[n])
     def create_timer(self, period, cb):
         t = Timer(period, cb); sim.timers.append(t); return t
@@ -69,9 +72,17 @@ class Node:
     def create_publisher(self, typ, topic, qos):
         p = Pub(topic); sim.pubs[topic] = p; return p
     def get_clock(self): return NS(now=lambda: NS(nanoseconds=int(sim.t * 1e9)))
+    _sites = {}
     def get_logger(self):
-        pr = lambda lvl: (lambda m: print(f'   [{sim.t-1000:6.1f}] {lvl}: {m}') if VERBOSE else None)
-        return NS(info=pr('INFO'), warn=pr('WARN'), error=pr('ERR'))
+        def pr(lvl):
+            def log(m):
+                # like rclpy: one call site may not log at two different severities
+                f = sys._getframe(1); site = (f.f_code.co_filename, f.f_lineno)
+                if Node._sites.setdefault(site, lvl) != lvl:
+                    raise ValueError('Logger severity cannot be changed between calls.')
+                if VERBOSE: print(f'   [{sim.t-1000:6.1f}] {lvl}: {m}')
+            return log
+        return NS(info=pr('INFO'), warn=pr('WARN'), warning=pr('WARN'), error=pr('ERR'))
     def destroy_node(self): pass
 
 class Buffer:
@@ -99,7 +110,7 @@ class NavigateToPose: Goal = Goal
 
 rclpy = mod('rclpy', init=lambda: None, spin=lambda n: None, shutdown=lambda: None)
 rclpy.time = mod('rclpy.time', Time=lambda: None)
-mod('rclpy.node', Node=Node); mod('rclpy.action', ActionClient=ActionClient)
+mod('rclpy.executors', ExternalShutdownException=type('ExternalShutdownException', (Exception,), {})); mod('rclpy.node', Node=Node); mod('rclpy.action', ActionClient=ActionClient)
 mod('action_msgs'); mod('action_msgs.msg', GoalStatus=NS(STATUS_SUCCEEDED=4, STATUS_CANCELED=5))
 mod('ament_index_python'); mod('ament_index_python.packages', get_package_share_directory=lambda p: ROOT)
 mod('geometry_msgs'); mod('geometry_msgs.msg', Point=Msg, PoseStamped=PoseStamped, Twist=Msg)
@@ -140,9 +151,14 @@ def step(dt=0.1):
 def run(seconds):
     for _ in range(int(seconds / 0.1)): step()
 
-def new_fleet():
+from amr_fleet_sim.world_config import FLEET_PARAMS, world_files
+
+def new_fleet(world='warehouse'):
     reset()
-    robots = yaml.safe_load(open(os.path.join(ROOT, 'config', 'robots.yaml')))['robots']
+    f = world_files(ROOT, world)
+    Node.WORLD = {'robots_file': f['robots'], 'stations_file': f['stations'], 'roadmap_file': f['roadmap'],
+                  **FLEET_PARAMS[world]}
+    robots = yaml.safe_load(open(f['robots']))['robots']
     for r in robots: sim.world[r['name']] = [r['x'], r['y']]
     fm = FleetManager(); run(2); return fm
 
@@ -246,4 +262,26 @@ tries = sum('docking to charge' in json.loads(m.data)['msg'] and 'amr1' in json.
 check(f'only one dock attempt in 5 s (got {tries})', tries == 1)
 fm.traffic.set_goal = real_set_goal; run(15)
 check('retries after the back-off and ends up charging', fm.robots['amr1'].status == 'CHARGING')
+
+# 7b --------------------------------------------------------------------- a broken robot is benched
+print('7b. robot whose Nav2 rejects every goal gets benched, task goes elsewhere'); fm = new_fleet()
+task('P1', 'D1', 2); run(3)
+bad = fm.tasks[1].robot; sim.reject.add(bad); run(300); s = snap(fm)
+fails_on_bad = sum(f'Task 1 on {bad}' in json.loads(m.data)['msg'] for m in fm.log_pub.msgs)
+check(f'task done by another robot (done={s["stats"]["done"]}, robot={fm.tasks[1].robot})',
+      s['stats']['done'] == 1 and fm.tasks[1].robot != bad)
+check(f'bad robot failed it only once (got {fails_on_bad})', fails_on_bad == 1)
+check('bad robot reported not ready while benched', not fm.robots[bad].ready or s['t'] > 15)
+
+# 8 ---------------------------------------------------------------------- big warehouse end to end
+print('8. big warehouse: 4 robots, 12 mixed tasks'); fm = new_fleet('big_warehouse')
+check('4 robots on a 100+ node roadmap', len(fm.robots) == 4 and len(fm.roadmap.nodes) > 100)
+import random as _r; rr = _r.Random(5)
+P = [k for k in fm.stations if k.startswith('P')]; D = [k for k in fm.stations if k.startswith('D')]
+for _ in range(12): task(rr.choice(P), rr.choice(D), rr.choice([1, 1, 2, 3]))
+sim.min_gap = 1e9; run(1500); s = snap(fm)
+check(f"all 12 tasks done (done={s['stats']['done']}, failed={s['stats']['failed']})", s['stats']['done'] == 12)
+check(f'robots never closer than 0.9 m (min {sim.min_gap:.2f})', sim.min_gap > 0.9)
+check('every robot did some work', all(r.dist_travelled > 20 for r in fm.robots.values()))
+check('nobody ran flat', all(r.battery > 15 for r in fm.robots.values()))
 print(f'\nALL {len(passed)} MANAGER CHECKS PASSED')

@@ -10,7 +10,7 @@ assert all(rm.shortest_path('dock_amr1', n) for n in rm.nodes), 'graph not conne
 
 SPEED, DT = 0.5, 0.2
 
-def run(starts, goal_fn, sim_time=900.0, seed=0):
+def run(starts, goal_fn, sim_time=900.0, seed=0, rm=rm):
     rnd = random.Random(seed)
     tm = TrafficManager(rm, patience=6.0)
     pos, seg, goals_done, wait_time = {}, {}, {}, {}
@@ -87,4 +87,29 @@ assert tm.agents['a'].wait_on is None, 'settle left a stale wait_on'
 tm.set_goal('b', 'D1'); assert tm.request('b', 1.0)[0] == 'WAIT'
 assert tm._cycle('b') is None, 'phantom wait-for cycle through a settled robot'
 print('settle           : wait state cleared, no phantom cycle')
+
+# 5) big warehouse: 103-node grid, many alternative routes for Dijkstra to re-plan through
+import time
+bcfg = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), '..', 'config', 'big_warehouse', 'roadmap.yaml')))
+big = RoadMap(bcfg['nodes'], bcfg['edges'])
+assert all(big.shortest_path('dock_amr1', n) for n in big.nodes), 'big graph not connected'
+t0 = time.perf_counter(); n_q = 0
+for a in list(big.nodes)[::7]:
+    for b in big.nodes:
+        big.shortest_path(a, b); n_q += 1
+print(f'big dijkstra     : {len(big.nodes)} nodes, {(time.perf_counter() - t0) / n_q * 1e3:.2f} ms per query')
+bst = [n for n in big.nodes if n[0] in 'PD' and n[1:].isdigit()]
+bpick = lambda rnd, cur: rnd.choice([s for s in bst if s != cur])
+worst, mind = 1e9, 99
+for seed in range(10):
+    starts = {f'amr{i + 1}': f'dock_amr{i + 1}' for i in range(4)}
+    gap, done, w = run(starts, bpick, sim_time=1200, seed=seed, rm=big)
+    worst = min(worst, gap); mind = min(mind, min(done.values()))
+print(f'big, 4 robots    : 10 runs, min gap {worst:.2f} m, fewest goals reached by any robot {mind}')
+assert worst > 1.0 and mind >= 5
+rnd = random.Random(1)
+starts = dict(zip([f'r{i}' for i in range(10)], rnd.sample([n for n in big.nodes if n.startswith('N_')], 10)))
+gap, done, w = run(starts, bpick, sim_time=1500, seed=1, rm=big)
+print(f'big, 10 robots   : min gap {gap:.2f} m, goals {sorted(done.values())}')
+assert gap > 1.0 and min(done.values()) >= 3
 print('ALL TRAFFIC TESTS PASSED')
