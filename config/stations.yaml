@@ -1,0 +1,10 @@
+# Coordinates are in the map frame (= Gazebo world frame, see mapping notes).
+# P* = pickup stations, D* = drop-off stations. Each robot's dock is its spawn pose (robots.yaml).
+# Only P1, P2, D1 have coloured floor marks in the world; the rest are just points on free floor.
+stations:
+  P1: {x:  7.0, y: -4.5, yaw: 0.0, label: "Loading Bay A"}
+  P2: {x:  7.0, y:  4.5, yaw: 0.0, label: "Loading Bay B"}
+  P3: {x:  4.0, y:  0.0, yaw: 0.0, label: "Quality Inspection"}
+  D1: {x: -4.0, y:  0.0, yaw: 3.14, label: "Main Assembly"}
+  D2: {x: -4.0, y: -4.5, yaw: 3.14, label: "Dropoff Bay A"}
+  D3: {x: -4.0, y:  4.5, yaw: 3.14, label: "Dropoff Bay B"}

@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMR Command Center</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2322d3ee'/%3E%3Crect x='7' y='12' width='18' height='11' rx='3' fill='%2304121a'/%3E%3Ccircle cx='12' cy='17.5' r='1.7' fill='%2322d3ee'/%3E%3Ccircle cx='20' cy='17.5' r='1.7' fill='%2322d3ee'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0a0f1d; --bg2:#101935; --panel:rgba(26,34,56,.78); --panel2:rgba(12,18,34,.85); --line:rgba(255,255,255,.09);
+  --text:#e8edf7; --muted:#8996b2; --accent:#22d3ee; --green:#10b981; --red:#ef4444; --amber:#f59e0b; --violet:#8b5cf6;
+  --mapbg:#0d1424; --grid:rgba(255,255,255,.035); --shadow:0 8px 30px rgba(0,0,0,.35); --btn:#16203a; --inp:#0a1020;
+}
+[data-theme=light]{
+  --bg:#eef1f7; --bg2:#dfe6f5; --panel:rgba(255,255,255,.88); --panel2:rgba(240,243,250,.95); --line:rgba(20,30,60,.12);
+  --text:#161d30; --muted:#5d6b88; --accent:#0891b2; --mapbg:#e7ebf4; --grid:rgba(0,0,0,.05); --shadow:0 6px 22px rgba(30,45,90,.12);
+  --btn:#e4e9f5; --inp:#ffffff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(1200px 700px at 10% -10%,var(--bg2),var(--bg));background-attachment:fixed;color:var(--text);
+  font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button,select,input{font:inherit;color:var(--text)}
+button{cursor:pointer}
+/* header */
+.top{display:flex;align-items:center;gap:16px;padding:10px 18px;margin:12px 12px 0;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);flex-wrap:wrap;backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--violet));color:#fff}
+.brand h1{font-size:18px;margin:0;line-height:1.1}
+.brand small{color:var(--muted);letter-spacing:.14em;font-size:10.5px}
+.tabs{display:flex;gap:4px;padding:5px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin:0 auto}
+.tab{background:none;border:0;padding:6px 14px;border-radius:8px;font-weight:600;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:8px;color:var(--muted)}
+.tab i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.tab.on{color:var(--text);box-shadow:inset 0 -2px 0 var(--c)}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--btn);padding:8px 14px;border-radius:10px;font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{filter:brightness(1.15)} .btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:5px 12px;font-size:12px;background:#0b1224;color:#fff;border-color:rgba(255,255,255,.12)}
+[data-theme=light] .btn.sm{background:#1d2a4a}
+.btn.green{background:linear-gradient(135deg,#10b981,#06b6d4);color:#04121a;border:0}
+.btn.red{background:#ef4444;color:#fff;border:0;box-shadow:0 0 18px rgba(239,68,68,.35)}
+.btn.red.on{background:#f59e0b;color:#1b1200;animation:pulse 1s infinite}
+.btn.cyan{background:var(--accent);color:#04121a;border:0}
+.btn.on{background:var(--accent);color:#04121a;border-color:transparent}
+.btn.ico{padding:8px 10px}
+@keyframes pulse{50%{opacity:.6}}
+.fleetpill{display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;background:var(--panel2)}
+.fleetpill input{width:170px;background:none;border:0;outline:0;font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex:none}.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+/* layout */
+main{padding:12px;display:grid;gap:12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px}
+.lower{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(320px,1fr);gap:12px}
+@media(max-width:1000px){.lower{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+label.k{font-size:10.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-weight:600;display:block}
+/* robot card */
+.rcard{padding:14px 16px;border-top:3px solid var(--c);cursor:pointer;transition:box-shadow .2s}
+.rcard.sel{box-shadow:0 0 0 1px var(--c),var(--shadow)}
+.rc-top{display:flex;align-items:center;gap:12px}
+.idx{width:36px;height:36px;border-radius:10px;background:var(--c);color:#04121a;display:grid;place-items:center;font-weight:800}
+.rc-name b{display:block;font-size:15px}.rc-name small{color:var(--muted)}
+.rc-conn{margin-left:auto;font-size:11px;letter-spacing:.12em;color:var(--muted);display:flex;align-items:center;gap:6px}
+.rc-conn.on{color:var(--green)}
+.rc-link{margin:10px 0;display:flex;align-items:center;gap:8px;background:var(--panel2);padding:7px 10px;border-radius:10px}
+.rc-link input{background:none;border:0;outline:0;font-family:ui-monospace,Menlo,monospace;font-size:13px;min-width:0}
+.rc-link .ip{flex:1}.rc-link .port{width:52px}
+.rc-grid{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:12px;padding-top:10px;border-top:1px solid var(--line)}
+.pct{font-weight:700;color:var(--green);font-size:13px;margin-bottom:4px}
+.bar{height:5px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}.bar i{display:block;height:100%;background:var(--green);transition:width .5s}
+.bar i.mid{background:var(--amber)}.bar i.low{background:var(--red)}
+.chip{display:inline-block;background:#050912;color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.06em}
+.chip.man{background:var(--amber);color:#1b1200}
+.st{font-size:11.5px;color:var(--accent);font-weight:600;margin-top:5px}
+.st.warn{color:var(--amber)}.st.bad{color:var(--red)}
+.rc-foot{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.rc-foot span{flex:1;display:flex;align-items:center;gap:7px}
+/* map */
+.mappanel{padding:10px;display:flex;flex-direction:column;min-height:520px}
+.mapwrap{position:relative;flex:1;min-height:480px;background:var(--mapbg);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+#map{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+.maptitle{position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);padding:8px 12px;border-radius:12px;font-size:12px;z-index:2}
+.maptitle b{letter-spacing:.1em}.maptitle em{font-style:normal;font-family:ui-monospace,Menlo,monospace;color:var(--accent);border:1px solid var(--accent);padding:1px 8px;border-radius:99px;font-size:11px}
+.zoom{position:absolute;right:12px;top:12px;display:grid;gap:8px;z-index:2}
+.zoom button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-weight:700}
+.maplegend{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;z-index:2}
+.maplegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+/* control panel */
+.ctl{padding:16px;display:flex;flex-direction:column;gap:12px}
+.ctl-head{display:flex;align-items:center;gap:10px}.ctl-head h3{margin:0;font-size:16px}.ctl-head span.n{margin-left:auto;color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{border:0;background:none;padding:9px;border-radius:9px;font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.seg button.on{background:var(--accent);color:#04121a}
+.box{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.navstat{margin-top:8px;text-align:center;padding:7px;border-radius:8px;background:rgba(255,255,255,.04);font-weight:700;letter-spacing:.06em;font-size:12.5px}
+.navdetail{margin-top:6px;font-size:11.5px;color:var(--muted);text-align:center;min-height:16px}
+.big{font-size:30px;font-weight:800;color:var(--accent);margin-top:4px}.big small{font-size:12px;color:var(--muted);font-weight:500}
+.row{display:flex;gap:8px;margin-top:8px}
+select,.sel,input.t{background:var(--inp);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%;outline:0}
+.hint{font-size:11.5px;color:var(--muted);margin-top:8px}
+.joywrap{display:flex;gap:16px;align-items:center;justify-content:center;padding:6px 0}
+#stick{width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.10),rgba(34,211,238,.02));border:2px solid var(--line);position:relative;touch-action:none;flex:none}
+#knob{position:absolute;width:56px;height:56px;border-radius:50%;left:47px;top:47px;background:linear-gradient(135deg,var(--accent),var(--violet));box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.sliders{flex:1;display:grid;gap:10px;font-size:11.5px;color:var(--muted)}
+.sliders input{width:100%;accent-color:var(--accent)}
+.readout{font-family:ui-monospace,Menlo,monospace;font-size:12px;text-align:center;color:var(--muted);margin-top:4px}
+.hide{display:none!important}
+/* logs */
+.logs{padding:14px 16px}
+.logs-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}.logs-head h3{margin:0;font-size:14px;letter-spacing:.08em}
+.logs-head .sp{flex:1}.logs-head select{width:auto;padding:5px 8px}
+#log{height:190px;overflow-y:auto;font:12px/1.65 ui-monospace,Menlo,Consolas,monospace;background:var(--panel2);border-radius:10px;padding:8px 10px;border:1px solid var(--line)}
+#log div{white-space:pre-wrap}
+#log .t{color:var(--muted)}#log .lv{display:inline-block;width:56px;font-weight:700}
+.lv.info{color:var(--accent)}.lv.warn{color:var(--amber)}.lv.error{color:var(--red)}.lv.sys{color:var(--violet)}.lv.traffic{color:var(--green)}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(3,6,14,.65);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#modal.open{display:flex}
+.dlg{width:min(640px,100%);max-height:94vh;overflow:auto;background-color:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
+.dlg h2{margin:0 0 2px;font-size:19px}.dlg .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+.dhead{display:flex;gap:12px;align-items:center}.dhead .ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#10b981,#06b6d4);display:grid;place-items:center;color:#04121a}
+.x{margin-left:auto;background:none;border:0;font-size:20px;color:var(--muted)}
+.dlg label.k{margin:12px 0 5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.prio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.prio button{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left}
+.prio button b{display:block;font-size:13px}.prio button span{font-size:11.5px;color:var(--muted)}
+.prio button.on{border-color:var(--accent);background:rgba(34,211,238,.12)}.prio button.on b{color:var(--accent)}
+.rank{margin-top:16px;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel2)}
+.rank-h{display:flex;font-size:12.5px;font-weight:700;margin-bottom:8px}.rank-h em{margin-left:auto;font-style:normal;color:var(--green)}
+.rk{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px;align-items:center;padding:9px 10px;border-radius:10px;border:1px solid var(--line);margin-top:6px;font-size:12px}
+.rk.pick{border-color:var(--green);background:rgba(16,185,129,.12)}.rk.na{opacity:.5}
+.rk .who{display:flex;align-items:center;gap:7px;font-weight:700;flex-wrap:wrap}.rk .who i{width:9px;height:9px;border-radius:50%}
+.tag{font-size:9.5px;background:var(--green);color:#03150e;padding:1px 6px;border-radius:4px;font-weight:800;letter-spacing:.05em}
+.rk .v{font-family:ui-monospace,Menlo,monospace}.rk .v small{display:block;color:var(--muted);font-size:10px;font-family:system-ui}
+.note{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:10px}
+.dfoot{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-top:16px}
+.dfoot .btn{justify-content:center;padding:12px}
+#toast{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:80}
+.toast{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--accent);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);max-width:360px;font-size:13px}
+.toast.warn{border-left-color:var(--amber)}.toast.error{border-left-color:var(--red)}
+.estopbar{display:none;background:var(--red);color:#fff;text-align:center;font-weight:800;letter-spacing:.2em;padding:6px;margin:12px 12px 0;border-radius:10px}
+.estopbar.on{display:block;animation:pulse 1s infinite}
+
+/* --- stats strip, view toggles, camera panel, task queue --- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px}
+.kpi{padding:10px 14px;border-radius:14px}
+.kpi b{display:block;font-size:22px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi span{font-size:11.5px;color:var(--muted)}
+.viewbar{position:absolute;left:12px;top:58px;display:flex;gap:8px;align-items:center;z-index:2;flex-wrap:wrap;max-width:calc(100% - 70px)}
+.seg2{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg2 button{border:0;background:none;padding:5px 14px;border-radius:7px;font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+.seg2 button.on{background:var(--accent);color:#04121a}
+.tg{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:11.5px;color:var(--muted);cursor:pointer;user-select:none}
+.tg input{accent-color:var(--accent);margin:0}.tg.on{color:var(--text);border-color:var(--accent)}
+.hud{position:absolute;left:12px;bottom:34px;font:11.5px ui-monospace,Menlo,monospace;color:var(--accent);z-index:2;background:var(--panel2);border:1px solid var(--line);padding:3px 9px;border-radius:8px}
+.pip{position:absolute;right:12px;bottom:12px;width:300px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:3;box-shadow:var(--shadow)}
+.pip-h{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;border-bottom:1px solid var(--line)}
+.pip-h .sp{flex:1}.pip-h button{background:none;border:0;color:var(--muted)}
+.pip img,.pip canvas{display:block;width:100%;aspect-ratio:4/3;background:#05080f;object-fit:cover}
+.pip .msg{position:absolute;left:0;right:0;top:34px;bottom:0;display:grid;place-items:center;text-align:center;font-size:12px;color:var(--muted);padding:14px;pointer-events:none}
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:12px}
+@media(max-width:1000px){.bottom{grid-template-columns:1fr}}
+.tq{padding:14px 16px}.tq h3{margin:0 0 8px;font-size:14px;letter-spacing:.08em}
+.tq table{width:100%;border-collapse:collapse;font-size:12.5px}
+.tq th,.tq td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}.tq th{color:var(--muted);font-weight:600;font-size:11px}
+.tq .pr{display:inline-block;min-width:24px;text-align:center;border-radius:5px;padding:0 5px;font-weight:700;font-size:11px;background:var(--btn)}
+.tq .empty{color:var(--muted);padding:8px 0;font-size:13px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="10" rx="3"/><circle cx="9" cy="13" r="1.3"/><circle cx="15" cy="13" r="1.3"/><path d="M12 8V4M9 4h6"/></svg></div>
+    <div><h1>AMR Command Center</h1><small>FLEET INTERFACE V2.0</small></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="actions">
+    <div class="fleetpill" title="Fleet manager rosbridge (the machine running fleet_manager)"><span class="dot" id="fdot"></span><input id="fleetUrl" spellcheck="false"></div>
+    <button class="btn green" id="newTask">&#11042; New Pick Task</button>
+    <button class="btn" id="connAll">Connect All</button>
+    <button class="btn" id="demoBtn">Sim Demo <span class="dot" id="ddot"></span></button>
+    <button class="btn ico" id="soundBtn" title="Sound">&#128263;</button>
+    <button class="btn ico" id="themeBtn" title="Theme">&#9728;</button>
+    <button class="btn red" id="estopBtn">&#9888; E-STOP</button>
+  </div>
+</header>
+<div class="estopbar" id="estopBar">E-STOP ACTIVE &mdash; ALL ROBOTS HALTED</div>
+
+<main>
+  <section class="kpis" id="kpis"></section>
+  <section class="cards" id="cards"></section>
+  <section class="lower">
+    <div class="panel mappanel">
+      <div class="mapwrap" id="mapwrap">
+        <canvas id="map"></canvas>
+        <div class="maptitle"><b>FLEET SLAM MAP</b><em id="focusTag">Focused: &ndash;</em></div>
+        <div class="zoom">
+          <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">&minus;</button>
+          <button id="zall" title="Fit whole map">ALL</button><button id="zfoc" title="Centre on focused robot">&#9678;</button>
+        </div>
+        <div class="viewbar">
+          <div class="seg2" id="viewSeg"><button data-v="map" class="on">MAP</button><button data-v="lidar">LIDAR</button></div>
+          <span id="lidarOpts" class="hide" style="display:flex;gap:8px">
+            <label class="tg" id="tgFollowL"><input type="checkbox" id="tgFollow" checked> Follow robot</label>
+            <label class="tg" id="tgScanAllL"><input type="checkbox" id="tgScanAll"> All robots</label></span>
+          <label class="tg" id="tgCamL"><input type="checkbox" id="tgCam"> Camera</label>
+        </div>
+        <div class="hud hide" id="hud"></div>
+        <div class="pip hide" id="pip">
+          <div class="pip-h"><b id="pipTitle">Camera</b><span class="sp"></span><button id="pipX" title="Hide camera">&#10005;</button></div>
+          <img id="pipImg" alt="robot camera"><canvas id="pipCv" width="320" height="240" class="hide"></canvas><div class="msg" id="pipMsg"></div>
+        </div>
+        <div class="maplegend" id="maplegend"></div>
+      </div>
+    </div>
+    <div class="panel ctl" id="ctl"></div>
+  </section>
+  <section class="bottom">
+  <div class="panel tq"><h3>TASK QUEUE</h3><div id="tq"></div></div>
+  <section class="panel logs">
+    <div class="logs-head"><h3>SYSTEM LOGS</h3><span class="sp"></span>
+      <select id="logFilter"><option value="all">All</option><option value="info">Info</option><option value="warn">Warnings</option><option value="error">Errors</option><option value="traffic">Traffic</option><option value="sys">System</option></select>
+      <button class="btn sm" id="logClear">Clear</button><button class="btn sm" id="logDl">Download</button></div>
+    <div id="log"></div>
+  </section>
+  </section>
+</main>
+
+<div id="modal"><div class="dlg" id="dlg"></div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* =====================================================================  helpers & state */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const VIDEO_PORT = 8181;                       // web_video_server
+const RC = ["#22d3ee", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"];
+const NICK = ["Alpha", "Beta", "Gamma", "Delta", "Echo"];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("amr." + k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("amr." + k, v); } catch (e) { /* private mode */ } },
+};
+const S = {
+  robots: [], by: {}, status: null, lastT: -1, roadmap: null, adj: {}, stations: {}, info: null, mapCanvas: null, occ: null, B: null,
+  fleet: {ws: null, state: "off"}, focus: null, demo: null, logs: [], estop: false, sound: store.get("sound", "0") === "1",
+  view: {s: 30, ox: 0, oy: 0, custom: false}, shown: {}, local: {}, ui: {prio: 1, algo: "hungarian"},
+  man: {keys: new Set(), sx: 0, sy: 0, maxLin: 0.4, maxAng: 1.0, wasActive: false},
+  poses: {}, scan: {}, scanStat: {}, scanWs: {}, viewMode: store.get("view", "map"),
+  follow: store.get("follow", "1") === "1", scanAll: store.get("scanall", "0") === "1", cam: store.get("cam", "0") === "1",
+};
+const pad2 = (n) => String(n).padStart(2, "0");
+const rnum = (r) => { const m = /\d+/.exec(r.name); return m ? parseInt(m[0], 10) : r.idx + 1; };
+const dispName = (r) => "AMR-" + pad2(rnum(r));
+const dockName = (r) => "Dock " + pad2(rnum(r));
+const stLabel = (k) => (S.stations[k] && S.stations[k].label) || k;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+function toast(msg, kind = "info") {
+  const d = document.createElement("div"); d.className = "toast " + kind; d.textContent = msg;
+  $("#toast").appendChild(d); setTimeout(() => d.remove(), 3800);
+}
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine") {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), gn = actx.createGain();
+    o.type = type; o.frequency.value = freq; gn.gain.value = 0.05;
+    o.connect(gn); gn.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) { /* no audio */ }
+}
+function addLog(level, msg, t) {
+  const ts = t !== undefined ? t : (S.status ? S.status.t : 0);
+  S.logs.push({t: ts, level, msg}); if (S.logs.length > 600) S.logs.shift();
+  renderLog();
+}
+function renderLog() {
+  const f = $("#logFilter").value, box = $("#log");
+  const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  box.innerHTML = S.logs.filter(l => f === "all" || l.level === f)
+    .map(l => `<div><span class="t">${Number(l.t).toFixed(1).padStart(7)}s</span> <span class="lv ${l.level}">${l.level.toUpperCase()}</span> ${esc(l.msg)}</div>`).join("");
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+
+/* =====================================================================  roadmap graph (JS mirror of traffic_core) */
+function buildGraph() {
+  S.adj = {}; const n = S.roadmap.nodes;
+  for (const k in n) S.adj[k] = {};
+  for (const [a, b] of S.roadmap.edges) { const d = Math.hypot(n[a][0] - n[b][0], n[a][1] - n[b][1]); S.adj[a][b] = d; S.adj[b][a] = d; }
+}
+function nearestNode(x, y) {
+  let best = null, bd = 1e18;
+  for (const [k, p] of Object.entries(S.roadmap.nodes)) { const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd) { bd = d; best = k; } }
+  return best;
+}
+function shortest(src, dst, blocked = new Set()) {
+  if (src === dst) return [src];
+  if (blocked.has(dst)) return null;
+  const dist = {[src]: 0}, prev = {}, done = new Set();
+  for (;;) {
+    let u = null, ud = 1e18;
+    for (const k in dist) if (!done.has(k) && dist[k] < ud) { u = k; ud = dist[k]; }
+    if (u === null) return null;
+    if (u === dst) break;
+    done.add(u);
+    for (const [v, w] of Object.entries(S.adj[u])) {
+      if (blocked.has(v)) continue;
+      if (dist[v] === undefined || ud + w < dist[v]) { dist[v] = ud + w; prev[v] = u; }
+    }
+  }
+  const p = [dst]; while (p[0] !== src) p.unshift(prev[p[0]]); return p;
+}
+const plen = (p) => p.slice(1).reduce((s, k, i) => s + S.adj[p[i]][k], 0);
+function roadDist(a, b) {
+  const na = nearestNode(a[0], a[1]), nb = nearestNode(b[0], b[1]), p = shortest(na, nb);
+  if (!p) return 1e5;
+  const N = S.roadmap.nodes;
+  return Math.hypot(a[0] - N[na][0], a[1] - N[na][1]) + plen(p) + Math.hypot(N[nb][0] - b[0], N[nb][1] - b[1]);
+}
+
+/* =====================================================================  allocation (JS mirror of fleet_core) */
+const DRAIN = 0.5, RESERVE = 15, WPRIO = 2, INF = 1e6;
+function taskXY(k) { const s = S.stations[k]; return [s.x, s.y]; }
+function costOf(r, t) {         // r: {xy,battery,dock}, t: {pickup,dropoff,prio}
+  const P = taskXY(t.pickup), D = taskXY(t.dropoff);
+  const e = (roadDist(r.xy, P) + roadDist(P, D) + roadDist(D, r.dock)) * DRAIN;
+  if (r.battery - e < RESERVE) return INF;
+  return roadDist(r.xy, P) - WPRIO * t.prio;
+}
+const order = (ts) => ts.slice().sort((a, b) => b.prio - a.prio || a.id - b.id);
+const ALGOS = {
+  nearest(tasks, robots) {
+    const free = robots.slice(), out = [];
+    for (const t of order(tasks)) {
+      if (!free.length) break;
+      const best = free.reduce((a, b) => costOf(a, t) <= costOf(b, t) ? a : b);
+      if (costOf(best, t) >= INF) continue;
+      out.push([t, best]); free.splice(free.indexOf(best), 1);
+    }
+    return out;
+  },
+  hungarian(tasks, robots) {            // exhaustive search is exact and fine for a handful of robots
+    const ts = order(tasks).slice(0, 7), n = Math.min(ts.length, robots.length);
+    if (!n) return [];
+    let best = null, bc = 1e18;
+    const rec = (ri, used, acc, cur) => {
+      if (cur.length === n) { if (acc < bc) { bc = acc; best = cur.slice(); } return; }
+      if (ri >= robots.length) return;
+      for (let j = 0; j < ts.length; j++) {
+        if (used.has(j)) continue;
+        used.add(j); cur.push([ts[j], robots[ri]]);
+        rec(ri + 1, used, acc + costOf(robots[ri], ts[j]), cur);
+        cur.pop(); used.delete(j);
+      }
+      if (robots.length - ri - 1 >= n - cur.length) rec(ri + 1, used, acc, cur);   // robot ri sits this round out
+    };
+    rec(0, new Set(), 0, []);
+    return (best || []).filter(([t, r]) => costOf(r, t) < INF);
+  },
+  auction(tasks, robots) {
+    const free = robots.slice(), rem = order(tasks), out = [];
+    while (free.length && rem.length) {
+      const bids = new Map();
+      for (const r of free) {
+        const opts = rem.map(t => [costOf(r, t), t]).filter(o => o[0] < INF);
+        if (!opts.length) continue;
+        const [c, t] = opts.reduce((a, b) => a[0] <= b[0] ? a : b);
+        if (!bids.has(t)) bids.set(t, []); bids.get(t).push([c, r]);
+      }
+      if (!bids.size) break;
+      for (const [t, lst] of bids) {
+        const w = lst.reduce((a, b) => a[0] <= b[0] ? a : b)[1];
+        out.push([t, w]); free.splice(free.indexOf(w), 1); rem.splice(rem.indexOf(t), 1);
+      }
+    }
+    return out;
+  },
+};
+const ALGO_TITLE = {nearest: "Nearest-Robot Ranking", hungarian: "Hungarian Algorithm Optimal Ranking", auction: "Auction Bid Ranking"};
+const ALGO_BTN = {nearest: "Nearest", hungarian: "Hungarian", auction: "Auction"};
+
+/* =====================================================================  transport: fleet link, robot links, demo */
+function wsOpen(url, onopen, onmsg, onclose) {
+  let ws; try { ws = new WebSocket(url); } catch (e) { onclose(); return null; }
+  ws.onopen = () => onopen(ws);
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) {            // rosbridge may send Infinity / NaN (lidar misses)
+      try { m = JSON.parse(ev.data.replace(/-?Infinity|NaN/g, "null")); } catch (e2) { return; } }
+    try { onmsg(m); } catch (e) { console.error(e); }
+  };
+  ws.onclose = onclose; ws.onerror = () => { try { ws.close(); } catch (e) { /* closed */ } };
+  return ws;
+}
+function setFleetState(st) {
+  S.fleet.state = st; $("#fdot").classList.toggle("on", st === "on" || !!S.demo);
+}
+function connectFleet() {
+  if (S.demo) return;
+  if (S.fleet.ws) { S.fleet.ws.onclose = null; try { S.fleet.ws.close(); } catch (e) { /* */ } }
+  const url = $("#fleetUrl").value.trim(); store.set("fleet", url);
+  S.fleet.ws = wsOpen(url, (ws) => {
+    setFleetState("on"); addLog("sys", "Fleet server connected: " + url);
+    ws.send(JSON.stringify({op: "subscribe", topic: "/fleet/status", type: "std_msgs/String"}));
+    ws.send(JSON.stringify({op: "subscribe", topic: "/fleet/log", type: "std_msgs/String"}));
+    ws.send(JSON.stringify({op: "subscribe", topic: "/fleet/poses", type: "std_msgs/String", throttle_rate: 0}));
+    ws.send(JSON.stringify({op: "advertise", topic: "/fleet/task_request", type: "std_msgs/String"}));
+    ws.send(JSON.stringify({op: "advertise", topic: "/fleet/command", type: "std_msgs/String"}));
+    S.scanWs = {}; setTimeout(syncScanSubs, 60);
+  }, (m) => {
+    if (m.op !== "publish") return;
+    if (m.topic === "/fleet/status") onStatus(JSON.parse(m.msg.data));
+    else if (m.topic === "/fleet/poses") onPoses(JSON.parse(m.msg.data));
+    else if (/\/scan$/.test(m.topic)) onScanMsg(m);
+    else if (m.topic === "/fleet/log") { const l = JSON.parse(m.msg.data); addLog(l.level, l.msg, l.t); if (/DONE/.test(l.msg)) beep(880); if (l.level === "error") beep(220, 0.3, "square"); }
+  }, () => { setFleetState("off"); if (!S.demo) setTimeout(connectFleet, 2500); });
+}
+function fleetSend(topic, obj) {
+  if (S.demo) { S.demo.receive(topic, obj); return true; }
+  const w = S.fleet.ws;
+  if (!w || w.readyState !== 1) { toast("Fleet server not connected", "warn"); return false; }
+  w.send(JSON.stringify({op: "publish", topic, msg: {data: JSON.stringify(obj)}}));
+  return true;
+}
+const command = (obj) => fleetSend("/fleet/command", obj);
+
+function linkState(r, st) {
+  r.link.state = st;
+  const el = $(`.rcard[data-r="${r.name}"]`); if (!el) return;
+  const c = $('[data-k="conn"]', el); c.classList.toggle("on", st === "on");
+  c.lastChild.textContent = st === "on" ? "CONNECTED" : st === "wait" ? "CONNECTING…" : "DISCONNECTED";
+  $('[data-k="connect"]', el).textContent = st === "on" ? "Disconnect" : "Connect";
+  if (st === "on") setTimeout(syncScanSubs, 60);
+}
+function toggleLink(r) {
+  if (S.demo) { toast("Sim Demo is running (links are simulated)", "warn"); return; }
+  if (r.link.ws && r.link.state !== "off") { r.link.ws.onclose = null; r.link.ws.close(); r.link.ws = null; linkState(r, "off"); addLog("sys", dispName(r) + " link closed"); return; }
+  const el = $(`.rcard[data-r="${r.name}"]`);
+  const ip = $('[data-k="ip"]', el).value.trim(), port = $('[data-k="port"]', el).value.trim();
+  store.set("ip." + r.name, ip); store.set("port." + r.name, port);
+  linkState(r, "wait");
+  r.link.ws = wsOpen(`ws://${ip}:${port}`, (ws) => {
+    linkState(r, "on"); addLog("sys", `${dispName(r)} connected (${ip}:${port})`);
+    ws.send(JSON.stringify({op: "advertise", topic: `/${r.name}/cmd_vel`, type: "geometry_msgs/Twist"}));
+  }, (m) => { if (m.op === "publish" && /\/scan$/.test(m.topic)) onScanMsg(m); }, () => { if (r.link.state !== "off") { addLog("warn", dispName(r) + " link lost"); } linkState(r, "off"); r.link.ws = null; });
+}
+function sendTwist(r, lin, ang) {
+  if (S.demo) { S.demo.setVel(r.name, lin, ang); return true; }
+  const w = r.link.ws;
+  if (!w || w.readyState !== 1) return false;
+  w.send(JSON.stringify({op: "publish", topic: `/${r.name}/cmd_vel`, msg: {linear: {x: lin, y: 0, z: 0}, angular: {x: 0, y: 0, z: ang}}}));
+  return true;
+}
+function connectAll() {
+  if (S.demo) { toast("Sim Demo is running"); return; }
+  connectFleet(); S.robots.forEach(r => { if (r.link.state === "off") toggleLink(r); });
+}
+
+/* =====================================================================  status handling */
+function onStatus(st) {
+  if (st.t === S.lastT && !S.demo) return;       // same stream received through another link
+  const prev = S.status; S.status = st; S.lastT = st.t;
+  if (prev) {
+    for (const [n, a] of Object.entries(st.traffic || {})) {
+      const o = prev.traffic && prev.traffic[n];
+      if (a.waiting_on && !(o && o.waiting_on) && S.by[n] && S.by[a.waiting_on]) addLog("traffic", `${dispName(S.by[n])} yields to ${dispName(S.by[a.waiting_on])}`);
+    }
+    if (st.stats.done > prev.stats.done) beep(880);
+  }
+  if (!!st.estop !== S.estop) { S.estop = !!st.estop; syncEstop(); }
+  updateKpis(st); updateQueue(st); updateCards(); updateCtl(); updateTabs(); if ($("#modal").classList.contains("open")) renderRank();
+}
+const rs = (n) => S.status && S.status.robots.find(r => r.name === n);
+const isManual = (r) => { const s = rs(r.name); return !!s && s.mode === "manual"; };
+
+/* =====================================================================  poses, lidar, camera, stats */
+const angdiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+function onPoses(m) { for (const [n, p] of Object.entries(m.p)) S.poses[n] = {x: p[0], y: p[1], yaw: p[2], speed: p[3]}; }
+
+function wantedScans() {                           // lidar is only streamed while the LIDAR view is on
+  const w = new Set(); if (S.viewMode !== "lidar" || !S.focus) return w;
+  w.add(S.focus); if (S.scanAll) S.robots.forEach(r => w.add(r.name)); return w;
+}
+function wsFor(r) {                                 // robot's own link if connected, otherwise the fleet server
+  const l = r.link.ws; if (l && l.readyState === 1) return l;
+  const f = S.fleet.ws; return f && f.readyState === 1 ? f : null;
+}
+function syncScanSubs() {
+  if (S.demo) return;
+  const want = wantedScans();
+  for (const [n, w] of Object.entries(S.scanWs)) {
+    const cur = S.by[n] ? wsFor(S.by[n]) : null;
+    if (!want.has(n) || cur !== w) { try { if (w.readyState === 1) w.send(JSON.stringify({op: "unsubscribe", topic: `/${n}/scan`})); } catch (e) { /* closed */ } delete S.scanWs[n]; }
+  }
+  for (const n of want) {
+    if (S.scanWs[n]) continue; const w = wsFor(S.by[n]); if (!w) continue;
+    w.send(JSON.stringify({op: "subscribe", topic: `/${n}/scan`, type: "sensor_msgs/LaserScan", throttle_rate: 100, queue_length: 1}));
+    S.scanWs[n] = w;
+  }
+}
+function onScanMsg(m) {
+  const name = m.topic.split("/")[1], d = m.msg; if (!S.by[name] || !d || !d.ranges) return;
+  const now = performance.now(), prev = S.scanStat[name], rmax = d.range_max || 8; let pts = 0;
+  for (const v of d.ranges) if (v !== null && isFinite(v) && v < rmax - 0.01) pts++;
+  S.scan[name] = {t: now, amin: d.angle_min, inc: d.angle_increment, ranges: d.ranges, rmax, rmin: d.range_min || 0.1};
+  S.scanStat[name] = {t: now, pts, hz: prev && now > prev.t ? 0.7 * prev.hz + 0.3 * 1000 / (now - prev.t) : 10};
+}
+function setView(v) {
+  S.viewMode = v; store.set("view", v);
+  $$("#viewSeg button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $("#lidarOpts").classList.toggle("hide", v !== "lidar"); $("#hud").classList.toggle("hide", v !== "lidar");
+  if (v === "lidar") { S.view.s = Math.max(S.view.s, 55); S.view.custom = true; } else fitAll();
+  syncScanSubs();
+}
+function syncToggles() {
+  $("#tgFollow").checked = S.follow; $("#tgScanAll").checked = S.scanAll; $("#tgCam").checked = S.cam;
+  for (const k of ["Follow", "ScanAll", "Cam"]) $("#tg" + k + "L").classList.toggle("on", $("#tg" + k).checked);
+}
+function initToggles() {
+  $("#viewSeg").onclick = (e) => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); };
+  $("#tgFollow").onchange = (e) => { S.follow = e.target.checked; store.set("follow", S.follow ? "1" : "0"); if (S.follow && S.viewMode === "lidar") S.view.s = Math.max(S.view.s, 55); syncToggles(); };
+  $("#tgScanAll").onchange = (e) => { S.scanAll = e.target.checked; store.set("scanall", S.scanAll ? "1" : "0"); syncScanSubs(); syncToggles(); };
+  $("#tgCam").onchange = (e) => { S.cam = e.target.checked; store.set("cam", S.cam ? "1" : "0"); updatePip(); syncToggles(); };
+  $("#pipX").onclick = () => { S.cam = false; store.set("cam", "0"); syncToggles(); updatePip(); };
+  $("#pipImg").onerror = () => { if (S.cam && !S.demo) $("#pipMsg").textContent = "No camera stream. Run dashboard.launch.py with web_video_server installed, and spawn robots with camera:=true."; };
+  syncToggles();
+}
+function followFocus() {
+  const sh = S.shown[S.focus]; if (!sh) return; const [x, y] = w2s(sh.x, sh.y);
+  S.view.ox += W / 2 - x; S.view.oy += H / 2 - y;
+}
+function drawScans() {
+  const now = performance.now();
+  for (const n of wantedScans()) {
+    const sc = S.scan[n], sh = S.shown[n]; if (!sc || !sh || now - sc.t > 1500) continue;
+    const col = S.by[n].color, ox = sh.x + 0.1 * Math.cos(sh.yaw), oy = sh.y + 0.1 * Math.sin(sh.yaw);
+    const sz = Math.max(2.4, Math.min(5, S.view.s * 0.05));
+    if (n === S.focus) {                                           // range rings, like RViz grid around the sensor
+      const [cx, cy] = w2s(ox, oy); g.strokeStyle = "rgba(255,255,255,.12)"; g.lineWidth = 1; g.setLineDash([3, 5]);
+      for (let k = 2; k <= sc.rmax; k += 2) { g.beginPath(); g.arc(cx, cy, k * S.view.s, 0, 7); g.stroke(); } g.setLineDash([]);
+    }
+    g.fillStyle = col; g.globalAlpha = 0.95;
+    for (let i = 0; i < sc.ranges.length; i++) {
+      const r = sc.ranges[i]; if (r === null || !isFinite(r) || r < sc.rmin || r >= sc.rmax - 0.01) continue;
+      const a = sh.yaw + sc.amin + i * sc.inc, [px, py] = w2s(ox + r * Math.cos(a), oy + r * Math.sin(a));
+      g.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+    }
+    g.globalAlpha = 1;
+  }
+}
+function updateHud() {
+  if (S.viewMode !== "lidar" || !S.by[S.focus]) return;
+  const st = S.scanStat[S.focus];
+  $("#hud").textContent = st && performance.now() - st.t < 1500
+    ? `LIDAR · ${dispName(S.by[S.focus])} · ${st.pts} returns · ${st.hz.toFixed(0)} Hz` : `LIDAR · waiting for /${S.focus}/scan …`;
+}
+function updatePip() {
+  const r = S.by[S.focus], on = S.cam && !!r, img = $("#pipImg"), cvp = $("#pipCv");
+  $("#pip").classList.toggle("hide", !on); if (r) $("#pipTitle").textContent = dispName(r) + " camera";
+  if (!on) { img.removeAttribute("src"); delete img.dataset.url; return; }
+  if (S.demo) { img.classList.add("hide"); cvp.classList.remove("hide"); $("#pipMsg").textContent = ""; return; }
+  cvp.classList.add("hide"); img.classList.remove("hide");
+  const host = ($(`.rcard[data-r="${r.name}"] [data-k="ip"]`).value || location.hostname || "localhost").trim();
+  const url = `http://${host}:${VIDEO_PORT}/stream?topic=/${r.name}/camera/image_raw&type=mjpeg&width=320&height=240&quality=55`;
+  if (img.dataset.url !== url) { img.dataset.url = url; img.src = url; $("#pipMsg").textContent = "Connecting to camera…"; }
+}
+function drawDemoCam() {                                           // synthetic first-person view built from the demo lidar
+  const c = $("#pipCv"), x = c.getContext("2d"), sc = S.scan[S.focus], w = c.width, h = c.height;
+  const sky = x.createLinearGradient(0, 0, 0, h / 2); sky.addColorStop(0, "#1b2740"); sky.addColorStop(1, "#33466b"); x.fillStyle = sky; x.fillRect(0, 0, w, h / 2);
+  const fl = x.createLinearGradient(0, h / 2, 0, h); fl.addColorStop(0, "#59606d"); fl.addColorStop(1, "#2a2e37"); x.fillStyle = fl; x.fillRect(0, h / 2, w, h / 2);
+  if (sc) {
+    const cols = 160, fov = 1.3, bw = w / cols, n = sc.ranges.length;
+    for (let i = 0; i < cols; i++) {
+      const a = fov / 2 - (i + 0.5) * fov / cols; let idx = Math.round((a - sc.amin) / sc.inc); idx = ((idx % n) + n) % n;
+      const r = sc.ranges[idx]; if (r === null) continue;
+      const hh = Math.min(h, 70 / Math.max(0.3, r * Math.cos(a))), sh = Math.max(40, 235 - r * 26);
+      x.fillStyle = `rgb(${sh * 0.78 | 0},${sh * 0.86 | 0},${sh | 0})`; x.fillRect(i * bw, h / 2 - hh / 2, bw + 1, hh);
+    }
+  }
+  x.fillStyle = "rgba(255,255,255,.75)"; x.font = "11px system-ui"; x.fillText("DEMO CAMERA - synthetic view built from the lidar", 8, h - 8);
+}
+function pipTick() {
+  updateHud(); if (!S.cam) return;
+  if (S.demo) drawDemoCam(); else if ($("#pipImg").naturalWidth > 0) $("#pipMsg").textContent = "";
+}
+function updateKpis(st) {
+  const k = st.stats, cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  $("#kpis").innerHTML = [["Tasks done", k.done], ["Pending", k.pending], ["Failed", k.failed], ["Avg wait", k.avg_wait_s.toFixed(1) + " s"],
+    ["Avg cycle", k.avg_cycle_s.toFixed(1) + " s"], ["Distance driven", k.total_dist_m.toFixed(0) + " m"], ["Allocator", cap(st.allocator)]]
+    .map(([l, v]) => `<div class="panel kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+}
+function updateQueue(st) {
+  $("#tq").innerHTML = st.tasks.length
+    ? `<table><tr><th>#</th><th>Route</th><th>Payload</th><th>Prio</th><th>Status</th><th>Robot</th></tr>` + st.tasks.map(t =>
+      `<tr><td>${t.id}</td><td>${esc(stLabel(t.pickup))} → ${esc(stLabel(t.dropoff))}</td><td>${esc(t.payload || "–")}</td><td><span class="pr">P${t.priority}</span></td><td>${t.status === "PENDING" ? "queued" : "running"}</td><td>${t.robot && S.by[t.robot] ? dispName(S.by[t.robot]) : "–"}</td></tr>`).join("") + `</table>`
+    : `<div class="empty">No active tasks. Press “New Pick Task” to create one.</div>`;
+}
+
+/* =====================================================================  header tabs & cards */
+function buildTabs() {
+  $("#tabs").innerHTML = S.robots.map(r => `<button class="tab" data-r="${r.name}" style="--c:${r.color}"><i></i><span>${dispName(r)}</span> <span class="mono pc"></span></button>`).join("");
+  $("#tabs").onclick = (e) => { const b = e.target.closest(".tab"); if (b) focusRobot(b.dataset.r); };
+}
+function updateTabs() {
+  for (const r of S.robots) { const s = rs(r.name); const t = $(`.tab[data-r="${r.name}"]`); t.classList.toggle("on", r.name === S.focus); $(".pc", t).textContent = s ? `(${Math.round(s.battery)}%)` : ""; }
+}
+function buildCards() {
+  $("#cards").innerHTML = S.robots.map(r => `
+  <div class="panel rcard" data-r="${r.name}" style="--c:${r.color}">
+    <div class="rc-top"><div class="idx">${pad2(rnum(r))}</div>
+      <div class="rc-name"><b>${r.nick} Bot</b><small>/${r.name}</small></div>
+      <div class="rc-conn" data-k="conn"><span class="dot"></span>DISCONNECTED</div></div>
+    <div class="rc-link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01"/></svg>
+      <input class="ip" data-k="ip" value="${esc(store.get("ip." + r.name, location.hostname || "localhost"))}" spellcheck="false">
+      <span>:</span><input class="port" data-k="port" value="${esc(store.get("port." + r.name, "9090"))}">
+      <button class="btn cyan" data-k="connect" style="padding:4px 12px">Connect</button></div>
+    <div class="rc-grid">
+      <div><label class="k">Battery</label><div class="pct" data-k="pct">--%</div><div class="bar"><i data-k="bar" style="width:0"></i></div></div>
+      <div><label class="k">Nav State</label><span class="chip" data-k="mode">AUTONOMOUS</span><div class="st" data-k="st">OFFLINE</div></div>
+      <div><label class="k">Pose &amp; Vel</label><div class="mono" data-k="pose" style="font-size:12.5px">X:– Y:–</div><div class="mono" style="color:var(--muted);font-size:11.5px" data-k="vel">0 m/s</div></div>
+    </div>
+    <div class="rc-foot"><span data-k="msg">Waiting for fleet data…</span><button class="btn sm" data-k="dock">Dock</button></div>
+  </div>`).join("");
+  $("#cards").onclick = (e) => {
+    const card = e.target.closest(".rcard"); if (!card) return;
+    const r = S.by[card.dataset.r];
+    if (e.target.closest('[data-k="connect"]')) return toggleLink(r);
+    if (e.target.closest('[data-k="dock"]')) { e.stopPropagation(); return sendDock(r); }
+    if (!e.target.closest("input")) focusRobot(r.name);
+  };
+}
+const STATE_TXT = {TO_PICKUP: "TO PICKUP", TO_DROP: "TO DROP-OFF", TO_DOCK: "RETURNING", TO_POINT: "GOING TO POINT", LOADING: "LOADING", CHARGING: "CHARGING", IDLE: "IDLE", MANUAL: "MANUAL", ESTOP: "E-STOPPED"};
+function footMsg(r, s) {
+  if (!s) return "Waiting for fleet data…";
+  const tr = (S.status.traffic || {})[r.name] || {}, nodeOf = tr.node, atDock = nodeOf === "dock_" + r.name;
+  switch (s.status) {
+    case "IDLE": return atDock ? "Standby at " + dockName(r) : "Idle at " + (stLabel(nodeOf) || nodeOf || "–");
+    case "CHARGING": return "Charging at " + dockName(r);
+    case "MANUAL": return "Manual control ready";
+    case "ESTOP": return "Emergency stopped";
+    case "LOADING": return "Loading payload (task " + s.task + ")";
+    case "TO_PICKUP": return "Heading to pickup · task " + s.task;
+    case "TO_DROP": return "Delivering · task " + s.task;
+    case "TO_DOCK": return "Returning to " + dockName(r);
+    case "TO_POINT": return "Navigating to chosen point";
+    default: return s.status;
+  }
+}
+function updateCards() {
+  for (const r of S.robots) {
+    const el = $(`.rcard[data-r="${r.name}"]`), s = rs(r.name), q = (k) => $(`[data-k="${k}"]`, el);
+    el.classList.toggle("sel", r.name === S.focus);
+    if (!s) continue;
+    q("pct").textContent = Math.round(s.battery) + "%";
+    const bar = q("bar"); bar.style.width = Math.max(0, Math.min(100, s.battery)) + "%"; bar.className = s.battery < 25 ? "low" : s.battery < 50 ? "mid" : "";
+    q("pct").style.color = s.battery < 25 ? "var(--red)" : s.battery < 50 ? "var(--amber)" : "var(--green)";
+    const m = q("mode"); m.textContent = s.mode === "manual" ? "MANUAL" : "AUTONOMOUS"; m.classList.toggle("man", s.mode === "manual");
+    const st = q("st"); st.textContent = STATE_TXT[s.status] || s.status; st.className = "st" + (s.status === "ESTOP" ? " bad" : s.status === "MANUAL" || s.status === "LOADING" ? " warn" : "");
+    q("pose").textContent = `X:${s.x.toFixed(1)} Y:${s.y.toFixed(1)}`;
+    q("vel").textContent = (s.speed || 0).toFixed(2) + " m/s";
+    q("msg").textContent = footMsg(r, s);
+    q("dock").disabled = S.estop;
+  }
+}
+
+/* =====================================================================  control panel */
+function focusRobot(name) {
+  if (!S.by[name]) return;
+  S.focus = name; $("#focusTag").textContent = "Focused: " + dispName(S.by[name]);
+  buildCtl(); updateCards(); updateTabs(); syncScanSubs(); updatePip();
+}
+function waypointOptions() {
+  const N = S.roadmap.nodes, opts = [];
+  for (const r of S.robots) opts.push([`${dockName(r)} (${r.nick}) (${N["dock_" + r.name] ? N["dock_" + r.name].map(v => +v.toFixed(1)).join(", ") : "-"})`, "dock_" + r.name]);
+  for (const k of Object.keys(S.stations)) opts.push([`${stLabel(k)} [${k}] (${taskXY(k).join(", ")})`, k]);
+  for (const k of Object.keys(N)) if (!k.startsWith("dock_") && !S.stations[k]) opts.push([`Junction ${k} (${N[k].join(", ")})`, k]);
+  return opts;
+}
+function buildCtl() {
+  const r = S.by[S.focus]; if (!r) { $("#ctl").innerHTML = ""; return; }
+  $("#ctl").style.setProperty("--c", r.color);
+  $("#ctl").innerHTML = `
+    <div class="ctl-head"><span class="dot on" style="background:${r.color};box-shadow:0 0 8px ${r.color}"></span><h3>${dispName(r)} Control</h3><span class="n">${r.nick} Bot</span></div>
+    <div class="seg" id="modeSeg"><button data-m="manual">MANUAL TELEOP</button><button data-m="auto">AUTONOMOUS NAV</button></div>
+    <div class="box"><label class="k">Navigation &amp; Traffic Status</label><div class="navstat" id="navStat">IDLE</div><div class="navdetail" id="navDetail"></div></div>
+    <div class="box"><label class="k">Distance to Target</label><div class="big"><span id="distVal">0.00</span> <small>meters</small></div></div>
+    <div id="autoBox" class="box"><label class="k">Preset Waypoint Dispatch</label>
+      <div class="row"><select id="wpSel">${waypointOptions().map(([t, v]) => `<option value="${v}">${esc(t)}</option>`).join("")}</select><button class="btn cyan" id="wpGo" style="padding:6px 16px">Go</button></div>
+      <div class="hint">…or click any free spot on the map to send ${dispName(r)} there.</div>
+      <div class="row"><button class="btn" id="stopBtn" style="flex:1;justify-content:center">&#9632; Stop</button><button class="btn" id="dockBtn" style="flex:1;justify-content:center">&#8962; Dock</button></div></div>
+    <div id="manBox" class="box hide"><label class="k">Manual Drive</label>
+      <div class="joywrap"><div id="stick"><div id="knob"></div></div>
+        <div class="sliders"><div>Max speed <b id="mlv">${S.man.maxLin.toFixed(2)}</b> m/s<input type="range" id="maxLin" min="0.1" max="0.8" step="0.05" value="${S.man.maxLin}"></div>
+          <div>Max turn <b id="mav">${S.man.maxAng.toFixed(1)}</b> rad/s<input type="range" id="maxAng" min="0.3" max="2" step="0.1" value="${S.man.maxAng}"></div></div></div>
+      <div class="readout" id="joyRead">Drag the stick or use W A S D / arrow keys · Space = stop</div>
+      <div class="row"><button class="btn" id="dockBtn2" style="flex:1;justify-content:center">&#8962; Dock (switches to autonomous)</button></div></div>`;
+  $("#modeSeg").onclick = (e) => { const b = e.target.closest("button"); if (b) setMode(r, b.dataset.m); };
+  $("#wpGo").onclick = () => { const k = $("#wpSel").value, p = S.roadmap.nodes[k]; sendGoto(r, p[0], p[1]); };
+  $("#stopBtn").onclick = () => { command({cmd: "stop", robot: r.name}); addLog("sys", `Stop sent to ${dispName(r)}`); };
+  $("#dockBtn").onclick = () => sendDock(r);
+  $("#dockBtn2").onclick = () => sendDock(r);
+  $("#maxLin").oninput = (e) => { S.man.maxLin = +e.target.value; $("#mlv").textContent = (+e.target.value).toFixed(2); };
+  $("#maxAng").oninput = (e) => { S.man.maxAng = +e.target.value; $("#mav").textContent = (+e.target.value).toFixed(1); };
+  initStick(); updateCtl();
+}
+function updateCtl() {
+  const r = S.by[S.focus]; if (!r || !$("#modeSeg")) return;
+  const s = rs(r.name), man = isManual(r);
+  $("#modeSeg").children[0].classList.toggle("on", man); $("#modeSeg").children[1].classList.toggle("on", !man);
+  $("#autoBox").classList.toggle("hide", man); $("#manBox").classList.toggle("hide", !man);
+  let txt = s ? (STATE_TXT[s.status] || s.status) : "OFFLINE", det = "";
+  const tr = S.status && S.status.traffic && S.status.traffic[r.name];
+  if (tr) {
+    if (tr.waiting_on) { txt = "WAITING — RIGHT OF WAY"; det = "Blocked by " + (S.by[tr.waiting_on] ? dispName(S.by[tr.waiting_on]) : tr.waiting_on); }
+    else if (tr.route && tr.route.length) det = "via " + [tr.moving_to, ...tr.route.filter(k => k !== tr.moving_to)].filter(Boolean).join(" → ");
+    else if (tr.node) det = "at node " + tr.node;
+  }
+  $("#navStat").textContent = txt; $("#navDetail").textContent = det;
+  $("#distVal").textContent = (s && s.target ? s.target.dist : 0).toFixed(2);
+}
+function setMode(r, m) {
+  if (S.estop) return toast("Release the E-STOP first", "warn");
+  command({cmd: "mode", robot: r.name, mode: m}); addLog("sys", `${dispName(r)} → ${m === "manual" ? "MANUAL" : "AUTONOMOUS"}`);
+  if (m === "manual" && !S.demo && r.link.state !== "on") toast(`Connect ${dispName(r)} (IP card) to drive it manually`, "warn");
+}
+function sendGoto(r, x, y) {
+  if (S.estop) return toast("E-STOP is active", "warn");
+  if (isManual(r)) return toast("Switch to AUTONOMOUS NAV first", "warn");
+  if (command({cmd: "goto", robot: r.name, x: +x.toFixed(2), y: +y.toFixed(2)})) {
+    S.local[r.name] = {x, y, t: Date.now()}; addLog("sys", `${dispName(r)} → go to (${x.toFixed(2)}, ${y.toFixed(2)})`);
+  }
+}
+function sendDock(r) {
+  if (S.estop) return toast("E-STOP is active", "warn");
+  if (isManual(r)) toast(`${dispName(r)} switches to autonomous and returns to its dock`);
+  if (command({cmd: "dock", robot: r.name})) addLog("sys", `${dispName(r)} → return to ${dockName(r)}`);
+}
+
+/* ----- joystick + keyboard */
+function initStick() {
+  const st = $("#stick"), kn = $("#knob"); if (!st) return;
+  const R = 47;
+  const move = (e) => {
+    const b = st.getBoundingClientRect(); let dx = e.clientX - (b.left + b.width / 2), dy = e.clientY - (b.top + b.height / 2);
+    const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
+    S.man.sx = dx / R; S.man.sy = dy / R; kn.style.left = 47 + dx + "px"; kn.style.top = 47 + dy + "px";
+  };
+  const end = () => { S.man.sx = S.man.sy = 0; kn.style.left = kn.style.top = "47px"; };
+  st.onpointerdown = (e) => { try { st.setPointerCapture(e.pointerId); } catch (x) { /* synthetic */ } move(e); };
+  st.onpointermove = (e) => { if (e.buttons) move(e); };
+  st.onpointerup = st.onpointercancel = end;
+}
+addEventListener("keydown", (e) => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; S.man.keys.add(e.key.toLowerCase()); if (e.key === " ") e.preventDefault(); });
+addEventListener("keyup", (e) => S.man.keys.delete(e.key.toLowerCase()));
+function teleopTick() {                                 // 10 Hz teleop loop
+  const r = S.by[S.focus]; if (!r) return;
+  const man = isManual(r) && !S.estop, k = S.man.keys;
+  let lin = -S.man.sy, ang = -S.man.sx;
+  if (k.has("w") || k.has("arrowup")) lin = 1; if (k.has("s") || k.has("arrowdown")) lin = -1;
+  if (k.has("a") || k.has("arrowleft")) ang = 1; if (k.has("d") || k.has("arrowright")) ang = -1;
+  if (k.has(" ")) { lin = 0; ang = 0; }
+  const active = man && (Math.abs(lin) > 0.05 || Math.abs(ang) > 0.05);
+  const el = $("#joyRead");
+  if (active) { sendTwist(r, lin * S.man.maxLin, ang * S.man.maxAng); S.man.wasActive = true; if (el) el.textContent = `v = ${(lin * S.man.maxLin).toFixed(2)} m/s   ω = ${(ang * S.man.maxAng).toFixed(2)} rad/s`; }
+  else if (S.man.wasActive) { sendTwist(r, 0, 0); sendTwist(r, 0, 0); S.man.wasActive = false; if (el) el.textContent = "Drag the stick or use W A S D / arrow keys · Space = stop"; }
+}
+setInterval(teleopTick, 100);
+
+/* =====================================================================  E-STOP / header buttons */
+function syncEstop() {
+  $("#estopBtn").classList.toggle("on", S.estop); $("#estopBtn").textContent = S.estop ? "▶ RESUME" : "⚠ E-STOP";
+  $("#estopBar").classList.toggle("on", S.estop);
+}
+$("#estopBtn").onclick = () => {
+  if (!S.estop) {
+    command({cmd: "estop"}); S.robots.forEach(r => sendTwist(r, 0, 0)); S.estop = true; syncEstop();
+    addLog("error", "E-STOP pressed by operator"); beep(220, 0.4, "square");
+  } else { command({cmd: "resume"}); S.estop = false; syncEstop(); addLog("info", "E-STOP released by operator"); }
+};
+$("#connAll").onclick = connectAll;
+$("#soundBtn").onclick = () => { S.sound = !S.sound; store.set("sound", S.sound ? "1" : "0"); $("#soundBtn").textContent = S.sound ? "🔊" : "🔇"; beep(660); };
+$("#themeBtn").onclick = () => { const d = document.documentElement; d.dataset.theme = d.dataset.theme === "dark" ? "light" : "dark"; store.set("theme", d.dataset.theme); if (S.occ) S.mapCanvas = buildMapCanvas(); };
+$("#demoBtn").onclick = () => toggleDemo();
+$("#logFilter").onchange = renderLog; $("#logClear").onclick = () => { S.logs = []; renderLog(); };
+$("#logDl").onclick = () => {
+  const csv = "time_s,level,message\n" + S.logs.map(l => `${l.t},${l.level},"${l.msg.replace(/"/g, '""')}"`).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"})); a.download = "fleet_log.csv"; a.click();
+};
+
+/* =====================================================================  New pick task dialog */
+$("#newTask").onclick = openTaskDialog;
+function openTaskDialog() {
+  if (!Object.keys(S.stations).length) return toast("No stations loaded", "error");
+  const ks = Object.keys(S.stations), P = ks.filter(k => k[0] === "P"), D = ks.filter(k => k[0] === "D");
+  const opt = (k) => `<option value="${k}">${esc(stLabel(k))} (${taskXY(k).join(", ")})</option>`;
+  $("#dlg").innerHTML = `
+    <div class="dhead"><div class="ic">&#11042;</div><div><h2>Create Pick &amp; Drop Task</h2><div class="sub" id="dsub"></div></div><button class="x" id="dx">&#10005;</button></div>
+    <label class="k">Payload / Object Description</label><input class="t" id="payload" placeholder="Heavy Cargo Pallet #12" value="Cargo pallet #${(S.status ? S.status.stats.done + S.status.tasks.length : 0) + 1}">
+    <div class="two"><div><label class="k">Pickup Station</label><select id="dpick">${P.map(opt).join("")}</select></div>
+      <div><label class="k">Drop-off Destination</label><select id="ddrop">${D.map(opt).join("")}</select></div></div>
+    <label class="k">Task Priority Level</label>
+    <div class="prio" id="dprio"><button data-p="1"><b>Normal (P1)</b><span>Standard speed</span></button><button data-p="2"><b>High (P2)</b><span>Right-of-way</span></button><button data-p="3"><b>Critical (P3)</b><span>Wins every conflict</span></button></div>
+    <label class="k">Allocation Algorithm</label>
+    <select id="dalgo"><option value="hungarian">Hungarian (globally optimal)</option><option value="nearest">Nearest robot (greedy)</option><option value="auction">Auction (bidding)</option></select>
+    <div class="rank"><div class="rank-h"><span id="rkTitle"></span><em id="rkTag"></em></div><div id="rkList"></div><div class="note" id="rkNote"></div></div>
+    <div class="dfoot"><button class="btn" id="dcancel">Cancel</button><button class="btn green" id="dgo">Dispatch</button></div>`;
+  $("#dalgo").value = S.ui.algo;
+  const sel = () => { [...$("#dprio").children].forEach(b => b.classList.toggle("on", +b.dataset.p === S.ui.prio)); };
+  $("#dprio").onclick = (e) => { const b = e.target.closest("button"); if (b) { S.ui.prio = +b.dataset.p; sel(); renderRank(); } };
+  $("#dalgo").onchange = (e) => { S.ui.algo = e.target.value; renderRank(); };
+  $("#dpick").onchange = $("#ddrop").onchange = renderRank;
+  const close = () => $("#modal").classList.remove("open");
+  $("#dx").onclick = $("#dcancel").onclick = close;
+  $("#modal").onclick = (e) => { if (e.target.id === "modal") close(); };
+  $("#dgo").onclick = () => {
+    const t = {pickup: $("#dpick").value, dropoff: $("#ddrop").value, priority: S.ui.prio, payload: $("#payload").value.trim()};
+    if (S.status && S.status.allocator !== S.ui.algo) command({cmd: "allocator", name: S.ui.algo});
+    if (fleetSend("/fleet/task_request", t)) { addLog("sys", `Task sent: ${stLabel(t.pickup)} → ${stLabel(t.dropoff)} (P${t.priority}) via ${S.ui.algo}`); close(); toast("Task dispatched"); }
+  };
+  sel(); $("#modal").classList.add("open"); renderRank();
+}
+function renderRank() {
+  if (!$("#rkList")) return;
+  const algo = S.ui.algo, prio = S.ui.prio, pick = $("#dpick").value, drop = $("#ddrop").value;
+  $("#rkTitle").textContent = ALGO_TITLE[algo]; $("#dgo").textContent = `Dispatch via ${ALGO_BTN[algo]} Algo`;
+  $("#dsub").textContent = ALGO_BTN[algo] + " task allocation & spatiotemporal reservation";
+  const rows = S.robots.map(r => {
+    const s = rs(r.name), live = s || {x: r.dock.x, y: r.dock.y, battery: 100, status: "IDLE", mode: "auto"};
+    const rb = {name: r.name, xy: [live.x, live.y], battery: live.battery, dock: [r.dock.x, r.dock.y]};
+    let why = "";
+    if (!s) why = "offline"; else if (S.estop) why = "e-stop"; else if (live.mode === "manual") why = "manual mode";
+    else if (live.status !== "IDLE") why = "busy · " + (STATE_TXT[live.status] || live.status).toLowerCase(); else if (live.ready === false) why = "not ready";
+    const t = {id: -1, pickup: pick, dropoff: drop, prio};
+    const c = costOf(rb, t), d = roadDist(rb.xy, taskXY(pick));
+    if (!why && c >= INF) why = "battery too low";
+    return {r, rb, why, d, c, live};
+  });
+  const avail = rows.filter(x => !x.why).map(x => x.rb);
+  const pend = (S.status ? S.status.tasks.filter(t => t.status === "PENDING") : []).map(t => ({id: t.id, pickup: t.pickup, dropoff: t.dropoff, prio: t.priority}));
+  const asg = ALGOS[algo]([...pend, {id: -1, pickup: pick, dropoff: drop, prio}], avail);
+  const chosen = (asg.find(([t]) => t.id === -1) || [])[1];
+  rows.sort((a, b) => (a.why ? 1 : 0) - (b.why ? 1 : 0) || a.c - b.c);
+  $("#rkList").innerHTML = rows.map(x => `
+    <div class="rk ${chosen && chosen.name === x.r.name ? "pick" : ""} ${x.why ? "na" : ""}">
+      <div class="who"><i style="background:${x.r.color}"></i>${dispName(x.r)} <span style="font-weight:400;color:var(--muted)">(${x.r.nick})</span>${chosen && chosen.name === x.r.name ? '<span class="tag">SELECTED</span>' : ""}</div>
+      <div class="v"><small>Dist</small>${x.d.toFixed(2)}m</div><div class="v"><small>Batt</small>${Math.round(x.live.battery)}%</div>
+      <div class="v"><small>Total Cost</small>${x.why ? "—" : x.c.toFixed(2)}</div>
+      ${x.why ? `<div class="v" style="grid-column:1/-1;color:var(--amber)"><small>Unavailable</small>${esc(x.why)}</div>` : ""}</div>`).join("");
+  $("#rkTag").textContent = chosen ? (algo === "hungarian" ? "Min-Cost Optimal" : algo === "auction" ? "Lowest Bid" : "Nearest") : "Queued";
+  $("#rkNote").textContent = chosen
+    ? `* ${dispName(S.by[chosen.name])} is allocated by ${ALGO_BTN[algo]} due to the lowest composite cost (${rows.find(x => x.r.name === chosen.name).c.toFixed(2)}). Cost = road distance to pickup − 2×priority.`
+    : "* No robot is available right now — the task will wait in the queue and be assigned as soon as one is free.";
+}
+
+/* =====================================================================  map */
+function loadPGM(buf) {
+  const b = new Uint8Array(buf); let p = 0;
+  const tok = () => {
+    for (;;) { while (p < b.length && [32, 9, 10, 13].includes(b[p])) p++; if (b[p] === 35) { while (p < b.length && b[p] !== 10) p++; } else break; }
+    let s = ""; while (p < b.length && ![32, 9, 10, 13].includes(b[p])) s += String.fromCharCode(b[p++]); return s;
+  };
+  if (tok() !== "P5") throw new Error("PGM must be binary (P5)");
+  const w = +tok(), h = +tok(), maxv = +tok(); p++;
+  return {w, h, maxv, data: b.subarray(p, p + w * h)};
+}
+function buildMapCanvas() {
+  const o = S.occ, c = document.createElement("canvas"); c.width = o.w; c.height = o.h;
+  const cx = c.getContext("2d"), img = cx.createImageData(o.w, o.h), dark = document.documentElement.dataset.theme === "dark";
+  const FREE = dark ? [24, 33, 54] : [250, 251, 253], WALL = dark ? [205, 220, 245] : [30, 40, 70], UNK = dark ? [11, 16, 30] : [222, 227, 238];
+  for (let i = 0; i < o.w * o.h; i++) {
+    let v = o.data[i] / o.maxv; if (S.info && S.info.negate) v = 1 - v;
+    const col = v > 0.9 ? FREE : v < 0.25 ? WALL : UNK; img.data.set([col[0], col[1], col[2], 255], i * 4);
+  }
+  cx.putImageData(img, 0, 0); return c;
+}
+function mapBlocked(x, y) {                        // true if (x,y) is wall / unknown / too close to one
+  const o = S.occ, i = S.info; if (!o) return false;
+  const rad = Math.ceil(0.25 / i.resolution);
+  const cx = Math.round((x - i.origin[0]) / i.resolution), cy = Math.round(o.h - 1 - (y - i.origin[1]) / i.resolution);
+  for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+    const px = cx + dx, py = cy + dy; if (px < 0 || py < 0 || px >= o.w || py >= o.h) return true;
+    let v = o.data[py * o.w + px] / o.maxv; if (i.negate) v = 1 - v;
+    if (v < 0.9) return true;
+  }
+  return false;
+}
+function cellOcc(x, y) {                           // single-cell test (used by the demo lidar)
+  const o = S.occ, i = S.info; if (!o) return false;
+  const cx = Math.round((x - i.origin[0]) / i.resolution), cy = Math.round(o.h - 1 - (y - i.origin[1]) / i.resolution);
+  if (cx < 0 || cy < 0 || cx >= o.w || cy >= o.h) return true;
+  let v = o.data[cy * o.w + cx] / o.maxv; if (i.negate) v = 1 - v; return v < 0.9;
+}
+function bounds() {
+  if (S.occ) { const i = S.info; return {x0: i.origin[0], y0: i.origin[1], x1: i.origin[0] + S.occ.w * i.resolution, y1: i.origin[1] + S.occ.h * i.resolution}; }
+  const ns = S.roadmap ? Object.values(S.roadmap.nodes) : [[-8, -6], [8, 6]], m = 1.5;
+  return {x0: Math.min(...ns.map(n => n[0])) - m, x1: Math.max(...ns.map(n => n[0])) + m, y0: Math.min(...ns.map(n => n[1])) - m, y1: Math.max(...ns.map(n => n[1])) + m};
+}
+const cv = $("#map"), g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+const w2s = (x, y) => { const B = S.B; return [S.view.ox + (x - B.x0) * S.view.s, S.view.oy + (B.y1 - y) * S.view.s]; };
+const s2w = (px, py) => { const B = S.B; return [(px - S.view.ox) / S.view.s + B.x0, B.y1 - (py - S.view.oy) / S.view.s]; };
+function fitAll() {
+  S.B = bounds(); const w = S.B.x1 - S.B.x0, h = S.B.y1 - S.B.y0;
+  S.view.s = Math.min((W - 40) / w, (H - 40) / h); S.view.ox = (W - w * S.view.s) / 2; S.view.oy = (H - h * S.view.s) / 2; S.view.custom = false;
+}
+function zoomAt(px, py, f) {
+  const [wx, wy] = s2w(px, py); S.view.s = Math.max(6, Math.min(400, S.view.s * f));
+  S.view.ox = px - (wx - S.B.x0) * S.view.s; S.view.oy = py - (S.B.y1 - wy) * S.view.s; S.view.custom = true;
+}
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect(); DPR = devicePixelRatio || 1;
+  const nw = Math.max(50, r.width), nh = Math.max(50, r.height);
+  if (nw !== W || nh !== H) { W = nw; H = nh; cv.width = W * DPR; cv.height = H * DPR; if (!S.view.custom && S.roadmap) fitAll(); }
+}
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function pad(x, y, h, rr) { if (g.roundRect) g.roundRect(x, y, 2 * h, 2 * h, rr); else g.rect(x, y, 2 * h, 2 * h); }
+function draw() {
+  requestAnimationFrame(draw); resize();
+  if (!S.roadmap) return; if (!S.B) fitAll();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  const L = S.viewMode === "lidar"; if (L && S.follow) followFocus();
+  if (L) { g.fillStyle = "#06090f"; g.fillRect(0, 0, W, H); }
+  const N = S.roadmap.nodes, st = S.status, s = S.view.s;
+  g.strokeStyle = css("--grid"); g.lineWidth = 1; g.beginPath();
+  for (let x = Math.ceil(S.B.x0); x <= S.B.x1; x++) { const [px] = w2s(x, 0); g.moveTo(px, 0); g.lineTo(px, H); }
+  for (let y = Math.ceil(S.B.y0); y <= S.B.y1; y++) { const [, py] = w2s(0, y); g.moveTo(0, py); g.lineTo(W, py); }
+  g.stroke();
+  if (S.mapCanvas) { const [x0, y0] = w2s(S.B.x0, S.B.y1); g.imageSmoothingEnabled = false; g.globalAlpha = L ? 0.4 : 1; g.drawImage(S.mapCanvas, x0, y0, (S.B.x1 - S.B.x0) * s, (S.B.y1 - S.B.y0) * s); g.globalAlpha = 1; }
+  const owner = {};
+  if (st) for (const [n, a] of Object.entries(st.traffic || {})) { owner[a.node] = n; if (a.moving_to) owner[a.moving_to] = n; }
+  g.strokeStyle = css("--muted"); g.globalAlpha = .35; g.lineWidth = 2; g.beginPath();
+  for (const [a, b] of S.roadmap.edges) { const [x1, y1] = w2s(...N[a]), [x2, y2] = w2s(...N[b]); g.moveTo(x1, y1); g.lineTo(x2, y2); }
+  g.stroke(); g.globalAlpha = 1;
+  g.font = "600 10px system-ui"; g.textAlign = "center";
+  for (const r of S.robots) {                                    // dock pads
+    const p = N["dock_" + r.name]; if (!p) continue; const [px, py] = w2s(...p), h = 0.45 * s;
+    g.strokeStyle = r.color; g.fillStyle = r.color + "22"; g.lineWidth = 1.6; g.setLineDash([5, 4]);
+    g.beginPath(); pad(px - h, py - h, h, 6); g.fill(); g.stroke(); g.setLineDash([]);
+    g.fillStyle = r.color; g.fillText(dockName(r).toUpperCase(), px, py + h + 12);
+  }
+  if (st) for (const [n, a] of Object.entries(st.traffic || {})) {   // planned routes
+    const sh = S.shown[n]; if (!sh) continue; const pts = [[sh.x, sh.y]];
+    if (a.moving_to) pts.push(N[a.moving_to]); for (const k of a.route || []) if (N[k] && k !== a.moving_to) pts.push(N[k]);
+    const rr = rs(n); if (rr && rr.target && rr.status === "TO_POINT") pts.push([rr.target.x, rr.target.y]);
+    if (pts.length < 2) continue;
+    g.strokeStyle = S.by[n].color; g.lineWidth = 3; g.globalAlpha = .85; g.beginPath();
+    pts.forEach((p, i) => { const [x, y] = w2s(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); g.globalAlpha = 1;
+  }
+  for (const [k, p] of Object.entries(N)) {                       // nodes + stations
+    if (k.startsWith("dock_")) continue; const [x, y] = w2s(...p), own = owner[k], stn = S.stations[k];
+    g.beginPath(); g.arc(x, y, stn ? 8 : 5, 0, 7); g.fillStyle = own ? S.by[own].color : (stn ? (k[0] === "P" ? "#10b98155" : "#f59e0b55") : css("--muted") + "88"); g.fill();
+    if (stn) { g.lineWidth = 2; g.strokeStyle = k[0] === "P" ? "#10b981" : "#f59e0b"; g.stroke(); }
+    if (stn && s > 14) { g.fillStyle = css("--text"); g.globalAlpha = .9; g.font = "600 10.5px system-ui"; g.fillText(stn.label || k, x, y - 13); g.globalAlpha = 1; }
+  }
+  if (st) for (const [n, a] of Object.entries(st.traffic || {})) {   // waiting links
+    if (!a.waiting_on || !S.shown[n] || !S.shown[a.waiting_on]) continue;
+    const [x1, y1] = w2s(S.shown[n].x, S.shown[n].y), [x2, y2] = w2s(S.shown[a.waiting_on].x, S.shown[a.waiting_on].y);
+    g.setLineDash([6, 5]); g.strokeStyle = "#f59e0b"; g.lineWidth = 2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]);
+  }
+  if (st) for (const r of st.robots) {                            // targets
+    const col = S.by[r.name].color; let tg = r.target;
+    if (!tg && S.local[r.name] && Date.now() - S.local[r.name].t < 2500) tg = S.local[r.name];
+    if (!tg || !S.shown[r.name]) continue; const [tx, ty] = w2s(tg.x, tg.y), [rx, ry] = w2s(S.shown[r.name].x, S.shown[r.name].y);
+    g.setLineDash([4, 5]); g.strokeStyle = col; g.lineWidth = 1.5; g.beginPath(); g.moveTo(rx, ry); g.lineTo(tx, ty); g.stroke(); g.setLineDash([]);
+    g.beginPath(); g.arc(tx, ty, 9, 0, 7); g.lineWidth = 2; g.stroke(); g.beginPath(); g.arc(tx, ty, 3, 0, 7); g.fillStyle = col; g.fill();
+  }
+  if (L) drawScans();
+  if (st) for (const r of st.robots) {                            // robots
+    const sh = S.shown[r.name] || (S.shown[r.name] = {x: r.x, y: r.y, yaw: r.yaw || 0});
+    const tp = S.poses[r.name] || r, k = S.poses[r.name] ? 0.35 : 0.15;     // 5 Hz pose feed when available
+    sh.x += (tp.x - sh.x) * k; sh.y += (tp.y - sh.y) * k; sh.yaw += angdiff(tp.yaw || 0, sh.yaw) * k;
+    const [x, y] = w2s(sh.x, sh.y), col = S.by[r.name].color, rad = Math.max(10, 0.3 * s), foc = r.name === S.focus;
+    if (foc) { g.beginPath(); g.arc(x, y, rad + 7, 0, 7); g.strokeStyle = col; g.globalAlpha = .45; g.lineWidth = 3; g.stroke(); g.globalAlpha = 1; }
+    g.save(); g.translate(x, y); g.rotate(-sh.yaw);
+    g.beginPath(); g.moveTo(rad + 6, 0); g.lineTo(rad - 2, -5); g.lineTo(rad - 2, 5); g.closePath(); g.fillStyle = col; g.fill();
+    g.restore();
+    g.beginPath(); g.arc(x, y, rad, 0, 7); g.fillStyle = r.status === "ESTOP" ? "#ef4444" : col; g.fill(); g.lineWidth = 2.5; g.strokeStyle = css("--mapbg"); g.stroke();
+    g.fillStyle = "#04121a"; g.font = "800 11px system-ui"; g.fillText(pad2(rnum(S.by[r.name])), x, y + 4);
+    if (r.mode === "manual") { g.fillStyle = "#f59e0b"; g.font = "700 9px system-ui"; g.fillText("MANUAL", x, y - rad - 6); }
+  }
+}
+let drag = null;                                                  // pan / zoom / click
+cv.addEventListener("pointerdown", (e) => { drag = {x: e.clientX, y: e.clientY, ox: S.view.ox, oy: S.view.oy, moved: false}; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* synthetic */ } });
+cv.addEventListener("pointermove", (e) => {
+  if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.hypot(dx, dy) > 5) drag.moved = true;
+  if (drag.moved) { S.view.ox = drag.ox + dx; S.view.oy = drag.oy + dy; S.view.custom = true; if (S.viewMode === "lidar" && S.follow) { S.follow = false; syncToggles(); } }
+});
+cv.addEventListener("pointerup", (e) => { if (drag && !drag.moved) mapClick(e.clientX, e.clientY); drag = null; });
+cv.addEventListener("wheel", (e) => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, e.deltaY < 0 ? 1.15 : 1 / 1.15); }, {passive: false});
+$("#zin").onclick = () => zoomAt(W / 2, H / 2, 1.3); $("#zout").onclick = () => zoomAt(W / 2, H / 2, 1 / 1.3); $("#zall").onclick = fitAll;
+$("#zfoc").onclick = () => { const sh = S.shown[S.focus]; if (!sh) return; S.view.s = Math.max(S.view.s, 45); const [x, y] = w2s(sh.x, sh.y); S.view.ox += W / 2 - x; S.view.oy += H / 2 - y; S.view.custom = true; };
+function mapClick(cx, cy) {
+  if (!S.roadmap) return; const b = cv.getBoundingClientRect(), px = cx - b.left, py = cy - b.top, [wx, wy] = s2w(px, py);
+  if (S.status) for (const r of S.status.robots) {                // clicking a robot selects it
+    const sh = S.shown[r.name]; if (sh && Math.hypot(sh.x - wx, sh.y - wy) < 0.45) return focusRobot(r.name);
+  }
+  const r = S.by[S.focus]; if (!r) return;
+  if (mapBlocked(wx, wy)) return toast("That spot is a wall, shelf or unmapped — pick a free area", "warn");
+  sendGoto(r, wx, wy);
+}
+function buildLegend() {
+  $("#maplegend").innerHTML = S.robots.map(r => `<span><i style="background:${r.color}"></i>${dispName(r)}</span>`).join("") +
+    `<span><i style="background:#10b981"></i>pickup</span><span><i style="background:#f59e0b"></i>drop-off</span><span>dashed square = dock · click map = go there</span>`;
+}
+
+/* =====================================================================  Sim Demo (browser-only fake fleet) */
+class Demo {
+  constructor() {
+    this.t = 0; this.nid = 1; this.estop = false; this.algo = "hungarian"; this.tasks = []; this.owner = {}; this.done = 0; this.failed = 0; this.waits = []; this.cycles = [];
+    this.R = S.robots.map((r, i) => {
+      const node = nearestNode(r.dock.x, r.dock.y);
+      const o = {name: r.name, x: r.dock.x, y: r.dock.y, yaw: 0, battery: [95, 82, 68, 90, 75][i] || 90, status: "IDLE", manual: false, task: null, route: [], node, to: null,
+        wait: 0, goal: null, after: null, leg: null, target: null, speed: 0, dist: 0, v: {lin: 0, ang: 0}, load: 0, dock: r.dock, dockNode: node, blocker: null};
+      this.owner[node] = r.name; return o;
+    });
+    this.tick = setInterval(() => this.step(0.1), 100);
+  }
+  stop() { clearInterval(this.tick); }
+  log(l, m) { addLog(l, m, this.t); }
+  setVel(n, lin, ang) { this.R.find(r => r.name === n).v = {lin, ang}; }
+  receive(topic, d) {
+    if (topic === "/fleet/task_request") {
+      const t = {id: this.nid++, pickup: d.pickup, dropoff: d.dropoff, priority: d.priority, payload: d.payload, status: "PENDING", robot: null, created: this.t};
+      this.tasks.push(t); this.log("info", `Task ${t.id} queued: ${t.pickup} -> ${t.dropoff}, priority ${t.priority}` + (d.payload ? `, "${d.payload}"` : "")); return;
+    }
+    const c = d.cmd, r = this.R.find(x => x.name === d.robot);
+    if (c === "estop") { this.estop = true; this.R.forEach(x => { this.release(x); this.halt(x); x.status = "ESTOP"; }); this.log("error", "E-STOP ACTIVATED - all robots halted"); return; }
+    if (c === "resume") { this.estop = false; this.R.forEach(x => { x.status = x.manual ? "MANUAL" : "IDLE"; }); this.log("info", "E-STOP released - robots idle"); return; }
+    if (c === "allocator") { this.algo = d.name; this.log("info", "Allocator set to " + d.name); return; }
+    if (!r) return;
+    if (this.estop && c !== "mode") return this.log("warn", `${r.name}: ${c} refused, E-STOP is active`);
+    if (c === "mode") {
+      if (d.mode === "manual") { this.release(r); this.halt(r); r.manual = true; r.status = "MANUAL"; this.log("info", `${r.name}: MANUAL mode (operator drives)`); }
+      else { this.resync(r); this.halt(r); r.manual = false; r.status = this.estop ? "ESTOP" : "IDLE"; this.log("info", `${r.name}: AUTONOMOUS mode`); }
+    } else if (c === "dock") {
+      if (r.manual) { this.resync(r); r.manual = false; this.log("info", `${r.name}: AUTONOMOUS mode`); }
+      this.release(r); this.halt(r); this.log("info", `${r.name}: returning to dock`); this.park(r);
+    } else if (r.manual) this.log("warn", `${r.name}: ${c} refused, robot is in MANUAL mode`);
+    else if (c === "goto") {
+      if (r.task) return this.log("warn", `${r.name}: busy with task ${r.task.id}; use Dock/Stop first`);
+      this.halt(r); r.status = "TO_POINT"; r.target = {x: d.x, y: d.y}; this.log("info", `${r.name}: go to (${d.x.toFixed(2)}, ${d.y.toFixed(2)})`);
+      this.go(r, nearestNode(d.x, d.y), () => { r.leg = {x: d.x, y: d.y}; r.after = () => { r.status = "IDLE"; r.target = null; this.log("info", `${r.name}: arrived at point`); }; });
+    }
+    else if (c === "stop") { this.release(r); this.halt(r); r.status = "IDLE"; this.log("info", `${r.name}: stopped`); }
+  }
+  release(r) { if (r.task) { this.log("warn", `${r.name}: task ${r.task.id} returned to the queue`); r.task.status = "PENDING"; r.task.robot = null; r.task = null; } }
+  resync(r) {                                   // after manual driving: re-attach the robot to its nearest roadmap node
+    for (const k in this.owner) if (this.owner[k] === r.name) delete this.owner[k];
+    r.node = nearestNode(r.x, r.y); this.owner[r.node] = r.name;
+  }
+  scan(name) {                                  // synthetic 360-point lidar: ray-march through the saved map
+    const r = this.R.find(x => x.name === name), n = 360, ranges = new Array(n), ox = r.x + 0.1 * Math.cos(r.yaw), oy = r.y + 0.1 * Math.sin(r.yaw);
+    const others = this.R.filter(o => o !== r);
+    for (let i = 0; i < n; i++) {
+      const a = r.yaw - Math.PI + i * 2 * Math.PI / n; let hit = null;
+      for (let d = 0.15; d <= 8; d += 0.05) {
+        const px = ox + d * Math.cos(a), py = oy + d * Math.sin(a);
+        if (cellOcc(px, py) || others.some(o => Math.hypot(o.x - px, o.y - py) < 0.25)) { hit = d + (Math.random() - 0.5) * 0.02; break; }
+      }
+      ranges[i] = hit;
+    }
+    return {ranges, angle_min: -Math.PI, angle_increment: 2 * Math.PI / n, range_max: 8, range_min: 0.12};
+  }
+  halt(r) {                                     // cancel motion, keep only the node the robot stands on
+    for (const k in this.owner) if (this.owner[k] === r.name && k !== r.node) delete this.owner[k];
+    r.to = null; r.route = []; r.goal = null; r.after = null; r.leg = null; r.target = null; r.load = 0; r.wait = 0; r.v = {lin: 0, ang: 0};
+  }
+  go(r, node, after) {
+    r.goal = node; const p = shortest(r.node, node); r.route = p ? p.slice(1) : []; r.wait = 0;
+    r.after = () => {                           // park exactly on the node (e.g. after manual driving)
+      const np = S.roadmap.nodes[node];
+      if (Math.hypot(r.x - np[0], r.y - np[1]) > 0.4) { r.leg = {x: np[0], y: np[1]}; r.after = after; } else after();
+    };
+  }
+  park(r) { r.status = "TO_DOCK"; r.target = {x: r.dock.x, y: r.dock.y}; this.go(r, r.dockNode, () => { r.target = null; r.status = r.battery < 99 ? "CHARGING" : "IDLE"; }); }
+  avail(r) { return r.status === "IDLE" && !r.task && !r.manual && !this.estop; }
+  allocate() {
+    const pend = this.tasks.filter(t => t.status === "PENDING").map(t => ({id: t.id, pickup: t.pickup, dropoff: t.dropoff, prio: t.priority}));
+    if (!pend.length || this.estop) return;
+    const robs = this.R.filter(r => this.avail(r)).map(r => ({name: r.name, xy: [r.x, r.y], battery: r.battery, dock: [r.dock.x, r.dock.y]}));
+    for (const [t, rb] of ALGOS[this.algo](pend, robs)) {
+      const task = this.tasks.find(x => x.id === t.id), r = this.R.find(x => x.name === rb.name);
+      task.status = "ASSIGNED"; task.robot = r.name; task.assigned = this.t; r.task = task; r.status = "TO_PICKUP"; r.target = {x: S.stations[task.pickup].x, y: S.stations[task.pickup].y};
+      this.log("info", `Task ${task.id} -> ${r.name}  [${this.algo}]`);
+      this.go(r, task.pickup, () => { r.status = "LOADING"; r.target = null; r.load = 2; });
+    }
+  }
+  startDrop(r) {
+    const t = r.task; r.status = "TO_DROP"; r.target = {x: S.stations[t.dropoff].x, y: S.stations[t.dropoff].y};
+    this.go(r, t.dropoff, () => {
+      t.status = "DONE"; t.completed = this.t; this.done++; this.waits.push(t.assigned - t.created); this.cycles.push(t.completed - t.created);
+      this.log("info", `Task ${t.id} DONE by ${r.name} (cycle ${(t.completed - t.created).toFixed(0)}s)`); r.task = null; r.status = "IDLE"; r.target = null; this.allocate(); if (this.avail(r)) this.park(r);
+    });
+  }
+  step(dt) {
+    this.t += dt; const V = 0.8;
+    for (const r of this.R) {
+      let moved = 0;
+      if (r.manual && !this.estop) {
+        const nx = r.x + r.v.lin * Math.cos(r.yaw) * dt, ny = r.y + r.v.lin * Math.sin(r.yaw) * dt;
+        r.yaw += r.v.ang * dt; if (!mapBlocked(nx, ny)) { moved = Math.hypot(nx - r.x, ny - r.y); r.x = nx; r.y = ny; }
+      } else if (r.status === "ESTOP") { /* halted */ }
+      else if (r.load > 0) { r.load -= dt; if (r.load <= 0) this.startDrop(r); }
+      else if (r.to) {
+        const p = S.roadmap.nodes[r.to], dx = p[0] - r.x, dy = p[1] - r.y, d = Math.hypot(dx, dy), s = V * dt; r.yaw = Math.atan2(dy, dx);
+        if (d <= s) { moved = d; r.x = p[0]; r.y = p[1]; if (this.owner[r.node] === r.name && r.node !== r.to) delete this.owner[r.node]; r.node = r.to; r.to = null; if (r.route[0] === r.node) r.route.shift(); }
+        else { moved = s; r.x += dx / d * s; r.y += dy / d * s; }
+      } else if (r.route.length) {
+        const nx = r.route[0], hold = this.owner[nx], look = r.route[1], lh = look ? this.owner[look] : undefined;
+        if ((hold === undefined || hold === r.name) && (lh === undefined || lh === r.name)) { this.owner[nx] = r.name; r.to = nx; r.wait = 0; r.blocker = null; }
+        else {
+          r.wait += dt; r.blocker = hold && hold !== r.name ? hold : lh;
+          if (r.wait > 4) { const blocked = new Set(Object.keys(this.owner).filter(k => this.owner[k] !== r.name)); const p = shortest(r.node, r.goal, blocked); if (p && p.slice(1).join() !== r.route.join()) { r.route = p.slice(1); } r.wait = 2; }
+        }
+      } else if (r.leg) {
+        const dx = r.leg.x - r.x, dy = r.leg.y - r.y, d = Math.hypot(dx, dy), s = V * dt; r.yaw = Math.atan2(dy, dx);
+        if (d <= s) { r.x = r.leg.x; r.y = r.leg.y; r.leg = null; if (r.after) { const a = r.after; r.after = null; a(); } } else { moved = s; r.x += dx / d * s; r.y += dy / d * s; }
+      } else if (r.after) { const a = r.after; r.after = null; a(); }
+      r.speed = 0.7 * r.speed + 0.3 * (moved / dt); r.dist += moved; r.battery = Math.max(0, r.battery - moved * DRAIN);
+      if (r.status === "CHARGING") { r.battery = Math.min(100, r.battery + 4 * dt); if (r.battery >= 99.5) r.status = "IDLE"; }
+      if (r.status === "IDLE" && !r.manual && !this.estop && r.battery < 30 && r.node !== r.dockNode) { this.log("warn", `${r.name} battery ${r.battery.toFixed(0)}% - docking to charge`); this.park(r); }
+    }
+    onPoses({p: Object.fromEntries(this.R.map(r => [r.name, [r.x, r.y, r.yaw, r.speed]]))});
+    this.scanAcc = (this.scanAcc || 0) + dt;
+    if (this.scanAcc >= 0.1) {
+      this.scanAcc = 0; const want = wantedScans(); if (S.cam && S.focus) want.add(S.focus);
+      for (const n of want) onScanMsg({topic: `/${n}/scan`, msg: this.scan(n)});
+    }
+    this.pubAcc = (this.pubAcc || 0) + dt;
+    if (this.pubAcc >= 0.99) { this.pubAcc = 0; this.allocate(); this.publish(); }
+  }
+  publish() {
+    const tr = {};
+    for (const r of this.R) tr[r.name] = {node: r.node, goal: r.goal, moving_to: r.to, route: r.route.slice(), waiting_on: r.wait > 0.8 && !r.to ? (r.blocker || null) : null};
+    onStatus({
+      t: +this.t.toFixed(1), allocator: this.algo, estop: this.estop,
+      robots: this.R.map(r => ({name: r.name, x: +r.x.toFixed(2), y: +r.y.toFixed(2), yaw: +r.yaw.toFixed(2), speed: +r.speed.toFixed(2), status: r.status, mode: r.manual ? "manual" : "auto",
+        battery: +r.battery.toFixed(1), task: r.task ? r.task.id : null, ready: true, dist: +r.dist.toFixed(1),
+        target: r.target ? {x: r.target.x, y: r.target.y, dist: +roadDist([r.x, r.y], [r.target.x, r.target.y]).toFixed(2)} : null})),
+      traffic: tr,
+      tasks: this.tasks.filter(t => t.status === "PENDING" || t.status === "ASSIGNED").map(t => ({id: t.id, pickup: t.pickup, dropoff: t.dropoff, payload: t.payload, priority: t.priority, status: t.status, robot: t.robot})),
+      stats: {done: this.done, failed: this.failed, pending: this.tasks.filter(t => t.status === "PENDING").length,
+        avg_wait_s: this.waits.length ? +(this.waits.reduce((a, b) => a + b) / this.waits.length).toFixed(1) : 0, avg_cycle_s: this.cycles.length ? +(this.cycles.reduce((a, b) => a + b) / this.cycles.length).toFixed(1) : 0,
+        total_dist_m: +this.R.reduce((a, r) => a + r.dist, 0).toFixed(1)},
+    });
+  }
+}
+function toggleDemo() {
+  if (S.demo) {
+    S.demo.stop(); S.demo = null; $("#ddot").classList.remove("on"); $("#demoBtn").classList.remove("on"); S.status = null; S.lastT = -1; S.shown = {}; S.scan = {}; S.poses = {};
+    S.robots.forEach(r => linkState(r, "off")); updatePip(); setFleetState("off"); addLog("sys", "Sim Demo stopped"); connectFleet(); updateCards(); return;
+  }
+  if (S.fleet.ws) { S.fleet.ws.onclose = null; try { S.fleet.ws.close(); } catch (e) { /* */ } S.fleet.ws = null; }
+  S.status = null; S.lastT = -1; S.shown = {}; S.scan = {}; S.scanWs = {}; S.poses = {}; S.demo = new Demo(); $("#ddot").classList.add("on"); $("#demoBtn").classList.add("on"); setFleetState("on");
+  S.robots.forEach(r => linkState(r, "on")); addLog("sys", "Sim Demo started (no ROS needed)"); S.demo.publish(); updatePip();
+  setTimeout(() => { if (S.demo && !S.demo.tasks.length) { S.demo.receive("/fleet/task_request", {pickup: "P1", dropoff: "D1", priority: 2, payload: "Demo pallet #1"}); S.demo.receive("/fleet/task_request", {pickup: "P2", dropoff: "D3", priority: 1, payload: "Demo pallet #2"}); } }, 800);
+}
+
+/* =====================================================================  boot */
+async function boot() {
+  document.documentElement.dataset.theme = store.get("theme", "dark"); $("#soundBtn").textContent = S.sound ? "🔊" : "🔇";
+  $("#fleetUrl").value = store.get("fleet", `ws://${location.hostname || "localhost"}:9090`);
+  $("#fleetUrl").onchange = () => connectFleet();
+  const J = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(u + " → " + r.status); return r.json(); };
+  try {
+    const [rm, st, rb] = await Promise.all([J("/roadmap.json"), J("/stations.json"), J("/robots.json")]);
+    S.roadmap = rm; S.stations = st; buildGraph();
+    S.robots = rb.map((r, i) => ({name: r.name, idx: i, color: RC[i % RC.length], nick: NICK[i % NICK.length], dock: {x: r.x, y: r.y}, link: {ws: null, state: "off"}}));
+    S.robots.forEach(r => S.by[r.name] = r); S.focus = S.robots[0].name;
+  } catch (e) { addLog("error", "Could not load roadmap/robots: " + e.message + " — is dashboard_server running?"); toast("Dashboard server data missing", "error"); return; }
+  try {
+    S.info = await J("/map_info.json"); S.occ = loadPGM(await (await fetch("/map.pgm")).arrayBuffer()); S.mapCanvas = buildMapCanvas();
+    addLog("sys", `Map loaded (${S.occ.w}×${S.occ.h}, ${S.info.resolution} m/px)`);
+  } catch (e) { addLog("warn", "No SLAM map found – showing roadmap only (" + e.message + ")"); }
+  S.B = bounds(); buildTabs(); buildCards(); buildLegend(); focusRobot(S.focus); resize(); fitAll(); updateTabs();
+  initToggles(); setView(S.viewMode); updatePip(); setInterval(syncScanSubs, 2000); setInterval(pipTick, 250);
+  connectFleet(); requestAnimationFrame(draw);
+  addLog("sys", "Dashboard ready. Press Connect All, or Sim Demo to try it without ROS.");
+}
+window.AMR = {S, ALGOS, roadDist, mapBlocked, toggleDemo, onStatus, mapClick, openTaskDialog, teleopTick, setView, wantedScans, updatePip, pipTick, onScanMsg, onPoses, syncScanSubs};   // debug / test hook
+boot();
+</script>
+</body>
+</html>

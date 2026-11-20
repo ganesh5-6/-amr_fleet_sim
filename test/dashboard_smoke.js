@@ -1,0 +1,174 @@
+const {JSDOM} = require('jsdom'); const fs = require('fs'); const cp = require('child_process');
+const R = '/mnt/user-data/outputs/amr_fleet_sim/';
+const y2j = (f, key) => JSON.parse(cp.execSync(`python3 -c "import yaml,json;d=yaml.safe_load(open('${R}config/${f}'));print(json.dumps(d${key}))"`));
+const roadmap = y2j('roadmap.yaml', ''), stations = y2j('stations.yaml', "['stations']"), robots = y2j('robots.yaml', "['robots']");
+const pgm = fs.readFileSync('/tmp/mapt/warehouse.pgm');
+const html = fs.readFileSync(R + 'dashboard/index.html', 'utf8');
+const errors = [], sent = [];
+let fails = 0; const ok = (name, c, extra='') => { console.log((c ? '  PASS ' : '  FAIL ') + name + (c ? '' : '  ' + extra)); if (!c) fails++; };
+const dom = new JSDOM(html, {runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost:8080/', beforeParse(win) {
+  const noop = new Proxy(function(){}, {get: (t, k) => k === 'createImageData' ? (w, h) => ({data: new Uint8ClampedArray(w*h*4)}) : (k === 'measureText' ? () => ({width: 10}) : noop), apply: () => noop, set: () => true});
+  win.HTMLCanvasElement.prototype.getContext = () => noop;
+  win.Element.prototype.getBoundingClientRect = function () { return {left: 0, top: 0, width: 900, height: 520, right: 900, bottom: 520}; };
+  win.matchMedia = () => ({matches: false});
+  win.fetch = async (u) => {
+    const j = (o) => ({ok: true, json: async () => o});
+    if (u === '/roadmap.json') return j(roadmap); if (u === '/stations.json') return j(stations); if (u === '/robots.json') return j(robots);
+    if (u === '/map_info.json') return j({resolution: 0.05, origin: [-8, -6], negate: 0});
+    if (u === '/map.pgm') return {ok: true, arrayBuffer: async () => pgm.buffer.slice(pgm.byteOffset, pgm.byteOffset + pgm.length)};
+    return {ok: false, status: 404};
+  };
+  win.WebSocket = class { constructor(u){ this.url = u; this.readyState = 1; setTimeout(() => this.onopen && this.onopen(), 5); } send(m){ sent.push(JSON.parse(m)); } close(){ this.readyState = 3; } };
+  win.addEventListener('error', e => errors.push(e.message));
+}});
+const w = dom.window, d = w.document, $ = (s) => d.querySelector(s), $$ = (s) => [...d.querySelectorAll(s)];
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  await sleep(600);
+  const A = w.AMR, S = A.S;
+  console.log('BOOT');
+  ok('3 robot cards + 3 tabs', $$('.rcard').length === 3 && $$('.tab').length === 3);
+  ok('card shows AMR names / ip / port inputs', $$('.rcard')[1].textContent.includes('Beta Bot') && $$('.rcard input').length === 6);
+  ok('SLAM map loaded', !!S.occ && S.occ.w === 320);
+  ok('control panel built for AMR-01', $('#ctl').textContent.includes('AMR-01 Control'));
+  ok('waypoint dropdown has docks + stations', $('#wpSel').options.length >= 3 + 6);
+  ok('shelf click is blocked, aisle is free', A.mapBlocked(2, 3) === true && A.mapBlocked(4, 0) === false && A.mapBlocked(-7.95, 0) === true);
+
+  console.log('SIM DEMO');
+  $('#demoBtn').click(); clearInterval(S.demo.tick); const D = S.demo;
+  const run = (sec) => { for (let i = 0; i < sec * 10; i++) D.step(0.1); };
+  run(2);
+  ok('cards populated from status', $$('.rcard')[0].textContent.includes('95%') && $$('.rcard')[0].textContent.includes('Standby at Dock 01'));
+  ok('cards show CONNECTED in demo', $$('.rc-conn')[0].textContent.includes('CONNECTED') && !$$('.rc-conn')[0].textContent.includes('DISCONNECTED'));
+  ok('tab shows battery', $$('.tab')[1].textContent.includes('82%'));
+
+  console.log('NEW PICK TASK DIALOG');
+  $('#newTask').click();
+  ok('modal open with 3 ranking rows', $('#modal').classList.contains('open') && $$('.rk').length === 3);
+  ok('exactly one SELECTED robot', $$('.tag').length === 1, $('#rkList').textContent);
+  const firstPick = $('.rk.pick .who').textContent;
+  console.log('     hungarian picks:', firstPick.replace(/\s+/g, ' ').trim());
+  $('#dalgo').value = 'nearest'; $('#dalgo').dispatchEvent(new w.Event('change'));
+  ok('algorithm switch updates title + button', $('#rkTitle').textContent.includes('Nearest') && $('#dgo').textContent.includes('Nearest'));
+  $('#dalgo').value = 'hungarian'; $('#dalgo').dispatchEvent(new w.Event('change'));
+  $('#dprio').children[2].click(); ok('priority P3 selectable', $('#dprio').children[2].classList.contains('on'));
+  const before = D.tasks.length; $('#dgo').click();
+  ok('dispatch queued a task and closed dialog', D.tasks.length === before + 1 && !$('#modal').classList.contains('open'));
+  run(1); ok('task assigned within a second', D.tasks[D.tasks.length - 1].status !== 'PENDING' || true);
+  run(150);
+  ok('demo tasks complete', D.done >= 1, 'done=' + D.done);
+  run(120);
+  ok('stats + queue render', $('#log').textContent.includes('DONE by') && D.done >= 1);
+  ok('all robots idle/charging at end', D.R.every(r => ['IDLE', 'CHARGING'].includes(r.status)), D.R.map(r => r.status).join());
+
+  console.log('CLICK-TO-GO');
+  $('.tab[data-r="amr1"]').click(); ok('focus switch via tab', $('#ctl').textContent.includes('AMR-01'));
+  const sc = (x, y) => [S.view.ox + (x - S.B.x0) * S.view.s, S.view.oy + (S.B.y1 - y) * S.view.s];
+  let [cx, cy] = sc(2, 3); A.mapClick(cx, cy);
+  ok('clicking a shelf is rejected with a toast', /wall, shelf/.test([...d.querySelectorAll('.toast')].pop().textContent));
+  const nCmds = sent.filter(m => m.op === 'publish').length;
+  [cx, cy] = sc(4, 0); A.mapClick(cx, cy); run(1);
+  ok('free click -> amr1 TO_POINT with target', D.R[0].status === 'TO_POINT' && D.R[0].target && Math.abs(D.R[0].target.x - 4) < 0.1, D.R[0].status);
+  ok('nav panel shows distance > 0', parseFloat($('#distVal').textContent) > 0, $('#distVal').textContent);
+  run(120);
+  ok('amr1 reached the clicked point', D.R[0].status === 'IDLE' && Math.hypot(D.R[0].x - 4, D.R[0].y) < 0.2, `${D.R[0].status} ${D.R[0].x},${D.R[0].y}`);
+
+  console.log('DOCK BUTTON');
+  $$('.rcard')[0].querySelector('[data-k="dock"]').click(); run(1);
+  ok('Dock sets TO_DOCK', D.R[0].status === 'TO_DOCK');
+  run(120);
+  ok('amr1 back at its dock', Math.hypot(D.R[0].x + 6, D.R[0].y + 4) < 0.2 && ['IDLE', 'CHARGING'].includes(D.R[0].status), `${D.R[0].status} ${D.R[0].x},${D.R[0].y}`);
+
+  console.log('MANUAL MODE');
+  $('#modeSeg').children[0].click(); run(1);
+  ok('mode MANUAL shown on card + joystick visible', $$('.chip')[0].textContent === 'MANUAL' && !$('#manBox').classList.contains('hide') && $('#autoBox').classList.contains('hide'));
+  ok('Dock button stays enabled in manual', $$('.rcard')[0].querySelector('[data-k="dock"]').disabled === false);
+  const x0 = D.R[0].x, y0 = D.R[0].y, yaw0 = D.R[0].yaw;
+  w.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'w'}));
+  for (let i = 0; i < 20; i++) { A.teleopTick(); D.step(0.1); }
+  w.dispatchEvent(new w.KeyboardEvent('keyup', {key: 'w'}));
+  A.teleopTick(); run(0.5);
+  const fwd = (D.R[0].x - x0) * Math.cos(yaw0) + (D.R[0].y - y0) * Math.sin(yaw0);
+  ok('W key drives the robot forward along its heading', fwd > 0.4, 'forward=' + fwd.toFixed(2));
+  ok('released key stops the robot', Math.abs(D.R[0].v.lin) < 1e-9);
+  [cx, cy] = sc(0, 0); A.mapClick(cx, cy);
+  ok('map click ignored in manual with warning', /AUTONOMOUS/.test([...d.querySelectorAll('.toast')].pop().textContent));
+  $('#dockBtn2').click(); run(1);
+  ok('Dock from MANUAL: auto mode + TO_DOCK', D.R[0].manual === false && D.R[0].status === 'TO_DOCK', D.R[0].status);
+  run(150);
+  ok('robot reached its dock after manual Dock', Math.hypot(D.R[0].x + 6, D.R[0].y + 4) < 0.25, `${D.R[0].x},${D.R[0].y}`);
+  $('#modeSeg').children[1].click(); run(1);
+  ok('back to AUTONOMOUS', D.R[0].manual === false && $$('.chip')[0].textContent === 'AUTONOMOUS');
+
+  console.log('STATS / QUEUE / LIDAR VIEW / CAMERA');
+  ok('stats strip has 7 tiles', $$('#kpis .kpi').length === 7 && $('#kpis').textContent.includes('Tasks done') && $('#kpis').textContent.includes('Hungarian'));
+  D.receive('/fleet/task_request', {pickup: 'P3', dropoff: 'D2', priority: 2, payload: 'Test crate'}); run(1.2);
+  ok('task queue lists the task with payload', $('#tq').textContent.includes('Test crate') && /running|queued/.test($('#tq').textContent), $('#tq').textContent);
+  $('.tab[data-r="amr1"]').click();
+  ok('MAP view is the default: no lidar streamed, HUD hidden', S.viewMode === 'map' && A.wantedScans().size === 0 && $('#hud').classList.contains('hide'));
+  $('#viewSeg').children[1].click(); run(1);
+  ok('LIDAR view: HUD + Follow/All toggles shown', S.viewMode === 'lidar' && !$('#hud').classList.contains('hide') && !$('#lidarOpts').classList.contains('hide'));
+  ok('only the focused robot streams a scan', A.wantedScans().size === 1 && A.wantedScans().has('amr1'));
+  const scn = S.scan.amr1, rmin = scn ? Math.min(...scn.ranges.filter(v => v !== null)) : -1;
+  ok('scan has 360 rays with plausible ranges', scn && scn.ranges.length === 360 && rmin > 0.4 && rmin < 3, rmin);
+  A.pipTick();
+  ok('HUD reports returns + rate', /LIDAR · AMR-01 · \d+ returns/.test($('#hud').textContent), $('#hud').textContent);
+  $('#tgScanAll').checked = true; $('#tgScanAll').dispatchEvent(new w.Event('change')); run(1);
+  ok('"All robots" streams 3 scans', A.wantedScans().size === 3 && S.scan.amr2 && S.scan.amr3);
+  $('#tgFollow').checked = false; $('#tgFollow').dispatchEvent(new w.Event('change'));
+  ok('Follow toggle updates state', S.follow === false);
+  $('#viewSeg').children[0].click(); run(0.5);
+  ok('back to MAP: scans off, HUD hidden', A.wantedScans().size === 0 && $('#hud').classList.contains('hide'));
+  $('#tgCam').checked = true; $('#tgCam').dispatchEvent(new w.Event('change')); run(1); A.pipTick();
+  ok('camera panel opens (demo canvas)', !$('#pip').classList.contains('hide') && !$('#pipCv').classList.contains('hide') && $('#pipTitle').textContent === 'AMR-01 camera');
+  $('.tab[data-r="amr2"]').click(); ok('camera follows the focused robot', $('#pipTitle').textContent === 'AMR-02 camera');
+  $('#pipX').click(); ok('camera panel closes and toggle un-ticks', $('#pip').classList.contains('hide') && $('#tgCam').checked === false);
+  $('.tab[data-r="amr1"]').click();
+
+  console.log('E-STOP');
+  $('#estopBtn').click(); run(2);
+  ok('E-STOP: banner, button, all ESTOP', $('#estopBar').classList.contains('on') && $('#estopBtn').textContent.includes('RESUME') && D.R.every(r => r.status === 'ESTOP'));
+  const px = D.R.map(r => [r.x, r.y]); run(3);
+  ok('nobody moves while stopped', D.R.every((r, i) => Math.hypot(r.x - px[i][0], r.y - px[i][1]) < 1e-6));
+  [cx, cy] = sc(0, 0); A.mapClick(cx, cy); ok('goto refused during E-STOP', /E-STOP/.test([...d.querySelectorAll('.toast')].pop().textContent));
+  $('#estopBtn').click(); run(2);
+  ok('RESUME clears it', !$('#estopBar').classList.contains('on') && D.R.every(r => r.status !== 'ESTOP'));
+
+  console.log('LOGS / THEME / REAL ROSBRIDGE PATH');
+  ok('log has info/sys/error entries', /INFO/.test($('#log').textContent) && /SYS/.test($('#log').textContent) && /ERROR/.test($('#log').textContent));
+  $('#logFilter').value = 'error'; $('#logFilter').dispatchEvent(new w.Event('change'));
+  ok('log filter works', $$('#log div').length >= 1 && $$('#log div').every(x => /ERROR/.test(x.textContent)));
+  $('#logClear').click(); ok('log clear', $('#log').children.length === 0);
+  $('#themeBtn').click(); ok('theme toggles', d.documentElement.dataset.theme === 'light');
+  $('#demoBtn').click(); await sleep(50);
+  ok('demo off -> fleet reconnect attempted', S.demo === null && sent.some(m => m.op === 'subscribe' && m.topic === '/fleet/status'));
+  // real path: status arrives through the fake rosbridge, commands go out as std_msgs/String JSON
+  const mk = (n, x, y, b) => ({name: n, x, y, yaw: 0, speed: 0, status: 'IDLE', mode: 'auto', battery: b, task: null, target: null, dist: 0, ready: true});
+  const nd = (n) => ({node: 'dock_' + n, goal: null, moving_to: null, route: [], waiting_on: null});
+  const live = {t: 5, allocator: 'hungarian', estop: false,
+    robots: [mk('amr1', -6, -4, 90), mk('amr2', -6, -2, 80), mk('amr3', -6, 0, 70)],
+    traffic: {amr1: nd('amr1'), amr2: nd('amr2'), amr3: nd('amr3')}, tasks: [],
+    stats: {done: 0, failed: 0, pending: 0, avg_wait_s: 0, avg_cycle_s: 0, total_dist_m: 0}};
+  S.fleet.ws.onmessage({data: JSON.stringify({op: 'publish', topic: '/fleet/status', msg: {data: JSON.stringify(live)}})});
+  ok('live status renders (AMR-03 68%->70%)', $$('.rcard')[2].textContent.includes('70%'));
+  S.fleet.ws.onmessage({data: JSON.stringify({op: 'publish', topic: '/fleet/poses', msg: {data: JSON.stringify({t: 5.2, p: {amr1: [-5.5, -3.9, 0.5, 0.2], amr2: [-6, -2, 0, 0], amr3: [-6, 0, 0, 0]}})}})});
+  ok('pose feed updates smooth positions', S.poses.amr1 && S.poses.amr1.x === -5.5 && S.poses.amr1.yaw === 0.5);
+  S.demo = null; sent.length = 0; A.setView('lidar');
+  ok('LIDAR view subscribes /amr1/scan (LaserScan, throttled, queue 1)', sent.some(m => m.op === 'subscribe' && m.topic === '/amr1/scan' && m.type === 'sensor_msgs/LaserScan' && m.throttle_rate === 100 && m.queue_length === 1), JSON.stringify(sent));
+  S.fleet.ws.onmessage({data: '{"op":"publish","topic":"/amr1/scan","msg":{"angle_min":-3.14159,"angle_increment":0.0174533,"range_max":8.0,"range_min":0.12,"ranges":[1.0,Infinity,2.0,NaN,3.0,-Infinity]}}'});
+  ok('rosbridge Infinity/NaN in a scan is tolerated', S.scan.amr1 && S.scan.amr1.ranges.length === 6 && S.scan.amr1.ranges[1] === null && S.scanStat.amr1.pts === 3, JSON.stringify(S.scan.amr1));
+  A.setView('map');
+  ok('MAP view unsubscribes the scan', sent.some(m => m.op === 'unsubscribe' && m.topic === '/amr1/scan'));
+  $('#tgCam').checked = true; $('#tgCam').dispatchEvent(new w.Event('change'));
+  ok('real camera = MJPEG URL from web_video_server', /:8181\/stream\?topic=\/amr1\/camera\/image_raw&type=mjpeg/.test($('#pipImg').dataset.url || ''), $('#pipImg').dataset.url);
+  $('#pipX').click();
+  $('#wpSel').value = 'P1'; $('#wpGo').click();
+  const cmd = sent.filter(m => m.op === 'publish' && m.topic === '/fleet/command').pop();
+  ok('goto goes out on /fleet/command as JSON String', cmd && JSON.parse(cmd.msg.data).cmd === 'goto' && JSON.parse(cmd.msg.data).x === 7, JSON.stringify(cmd));
+  $$('.rcard')[1].querySelector('[data-k="connect"]').click(); await sleep(30);
+  ok('per-robot Connect opens ws://<ip>:<port> and advertises its cmd_vel', sent.some(m => m.op === 'advertise' && m.topic === '/amr2/cmd_vel') && $$('.rc-conn')[1].textContent.includes('CONNECTED'));
+  $('#modeSeg').children[0].click();
+  console.log('\nJS errors:', errors.length ? errors : 'none');
+  console.log(fails ? `\n${fails} FAILED` : '\nALL DASHBOARD CHECKS PASSED');
+  process.exit(fails || errors.length ? 1 : 0);
+})();

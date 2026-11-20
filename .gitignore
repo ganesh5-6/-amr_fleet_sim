@@ -1,0 +1,19 @@
+# colcon / python build output
+build/
+install/
+log/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Windows download metadata (WSL)
+*:Zone.Identifier
+
+# archives / generated artefacts
+*.tar.gz
+frames_*.pdf
+frames_*.gv
+
+# editor
+.vscode/
+.idea/

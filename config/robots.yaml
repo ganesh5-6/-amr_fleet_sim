@@ -1,0 +1,5 @@
+# Add/remove robots here. No code changes needed.
+robots:
+  - {name: amr1, x: -6.0, y: -4.0, yaw: 0.0}
+  - {name: amr2, x: -6.0, y: -2.0, yaw: 0.0}
+  - {name: amr3, x: -6.0, y:  0.0, yaw: 0.0}

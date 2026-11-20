@@ -1,0 +1,161 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Tool Properties
+    Name: Tool Properties
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Fixed Frame: map
+    Frame Rate: 30
+  Displays:
+    - Class: rviz_default_plugins/Map
+      Name: Map
+      Enabled: true
+      Topic:
+        Value: /map
+        Durability Policy: Transient Local
+      Alpha: 0.7
+      Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Name: amr1 scan
+      Enabled: true
+      Topic:
+        Value: /amr1/scan
+        Reliability Policy: Best Effort
+      Size (m): 0.04
+      Style: Flat Squares
+      Color Transformer: FlatColor
+      Color: 255; 50; 50
+      Use Fixed Frame: true
+      Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Name: amr2 scan
+      Enabled: true
+      Topic:
+        Value: /amr2/scan
+        Reliability Policy: Best Effort
+      Size (m): 0.04
+      Style: Flat Squares
+      Color Transformer: FlatColor
+      Color: 50; 220; 50
+      Use Fixed Frame: true
+      Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Name: amr3 scan
+      Enabled: true
+      Topic:
+        Value: /amr3/scan
+        Reliability Policy: Best Effort
+      Size (m): 0.04
+      Style: Flat Squares
+      Color Transformer: FlatColor
+      Color: 50; 120; 255
+      Use Fixed Frame: true
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: amr1 plan
+      Enabled: true
+      Topic:
+        Value: /amr1/plan
+      Color: 255; 50; 50
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: amr2 plan
+      Enabled: true
+      Topic:
+        Value: /amr2/plan
+      Color: 50; 220; 50
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: amr3 plan
+      Enabled: true
+      Topic:
+        Value: /amr3/plan
+      Color: 50; 120; 255
+      Value: true
+    - Class: rviz_default_plugins/Map
+      Name: amr1 global costmap
+      Enabled: false
+      Topic:
+        Value: /amr1/global_costmap/costmap
+      Color Scheme: costmap
+      Alpha: 0.5
+      Value: false
+    - Class: rviz_default_plugins/Map
+      Name: amr2 global costmap
+      Enabled: false
+      Topic:
+        Value: /amr2/global_costmap/costmap
+      Color Scheme: costmap
+      Alpha: 0.5
+      Value: false
+    - Class: rviz_default_plugins/Map
+      Name: amr3 global costmap
+      Enabled: false
+      Topic:
+        Value: /amr3/global_costmap/costmap
+      Color Scheme: costmap
+      Alpha: 0.5
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Roadmap + reservations
+      Enabled: true
+      Topic:
+        Value: /fleet/roadmap
+      Value: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: amr1 model
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /amr1/robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      TF Prefix: amr1
+      Value: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: amr2 model
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /amr2/robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      TF Prefix: amr2
+      Value: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: amr3 model
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /amr3/robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      TF Prefix: amr3
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: false
+      Value: false
+  Enabled: true
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Value: /amr1/goal_pose
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Name: Current View
+      Scale: 35
+      X: 0
+      Y: 0
+      Angle: 0
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1400

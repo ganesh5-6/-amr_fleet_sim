@@ -1,0 +1,5 @@
+# Single robot at world origin, used ONLY while building the map.
+# Starting at (0,0,0) makes the SLAM "map" frame identical to the Gazebo world frame,
+# so the spawn poses in robots.yaml double as AMCL initial poses later.
+robots:
+  - {name: amr1, x: 0.0, y: 0.0, yaw: 0.0}
